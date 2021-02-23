@@ -43,8 +43,6 @@ def load_data(path, example_num, obs_config):
 
     example_path = path + '/episode%d' % example_num
 
-    print(f'loading {example_path}')
-
     with open(join(example_path, LOW_DIM_PICKLE), 'rb') as f:
         obs = pickle.load(f)
 
