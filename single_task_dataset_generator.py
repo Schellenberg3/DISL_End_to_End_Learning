@@ -73,7 +73,7 @@ if __name__ == '__main__':
     requested_task = DislPickUpBlueCup #PickUpCup
 
     # Select where the demos are saved here
-    root_save_path = 'datasets/misc_data/DislPickUpBlueCup'
+    root_save_path = 'datasets/testing/DislPickUpBlueCup'
     #    Note: from the root demos are saved .../variation#/episodes/episode#
     #    the count for variations and the episodes within a variation start at 0
     #    It is important that the dataset's collection of episodes be continuous
@@ -83,7 +83,7 @@ if __name__ == '__main__':
     #    it until there are at least the desired number.
 
     # Define the total number of demos you'd like in the folder
-    num_total_demos = 8000
+    num_total_demos = 200
 
     # Define how many demos to get in each loop.  Demos are saved after each loop.
     num_demo_per_loop = 1
@@ -106,7 +106,7 @@ if __name__ == '__main__':
     try:
         num_existing_demos = len(listdir(full_save_path))
     except FileNotFoundError:
-        print(f'[Warn] It looks like {root_save_path} might not exist or is not set up properly.'
+        print(f'[Warn] It looks like {root_save_path} might not exist or is not set up properly. '
               f'When creating demos the directory {full_save_path} will be created.')
         num_existing_demos = 0
 
@@ -136,6 +136,12 @@ if __name__ == '__main__':
     print(f'[Info] Requested a total of {num_total_demos} demonstration episodes and '
           f'found {num_existing_demos} at the desired location. '
           f'\n[Info] Will generate {required_new_demos} new demonstration episodes at {full_save_path}')
+
+    print(f'\n[Info] Are you ready for the task collection to begin? (y/n)')
+    ans = input()
+    if ans not in ['y', 'yes', 'Y', 'Yes']:
+        print(f'[Warn] Answer: {ans} not recognized. Exiting program without generating demonstrations.')
+        exit()
 
     num_start_at = num_existing_demos
     for i in range(os.cpu_count()):
