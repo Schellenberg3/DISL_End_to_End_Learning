@@ -1,3 +1,4 @@
+from contextlib import redirect_stdout
 from tensorflow import keras
 from tensorflow.keras.layers import BatchNormalization
 from tensorflow.keras.layers import Conv2D
@@ -13,6 +14,8 @@ from tensorflow.keras.layers import Reshape
 
 
 def pos_net():
+    """Returns the standard proprioceptive part of the network
+    """
     # Note that all position inputs have a shape of 8 -> [7 panda joints, gripper open/close]
     pos_input = Input(shape=8)
     pos = Dense(64, activation="tanh")(pos_input)
@@ -22,6 +25,9 @@ def pos_net():
 
 
 def vis_net(settings="Hermann", four_deep=False):
+    """Returns the standard vision part of the network.
+    Either for the current observation or current + prior 3 observations
+    """
     if not four_deep:
         vis_input = Input(shape=(128, 128, 4))
     else:
@@ -62,6 +68,9 @@ def vis_net(settings="Hermann", four_deep=False):
 
 
 def rnn_position_vision(vis_settings="Hermann"):
+    """This is the 'basic' network for the research project.
+    This returns a network with vision and proprioception that are concatenated to a LSTM network
+    """
     pos_model = pos_net()
     vis_model = vis_net(settings=vis_settings)
 
@@ -75,7 +84,27 @@ def rnn_position_vision(vis_settings="Hermann"):
     return Model(inputs=[pos_model.input, vis_model.input], outputs=out)
 
 
+def position_vision(vis_settings="Hermann"):
+    """ Returns a variation of the basic rnn_position_vision with the
+    LSTM layer replaced by a deep lay of the same shape
+    """
+    pos_model = pos_net()
+    vis_model = vis_net(settings=vis_settings)
+
+    combined = Concatenate()([pos_model.output, vis_model.output])
+
+    out = Reshape((1, combined.shape[1]))(combined)
+    out = Dense(128, activation="relu")(out)
+    out = Dense(128, activation="relu")(out)
+    out = Dense(8, activation="linear")(out)
+
+    return Model(inputs=[pos_model.input, vis_model.input], outputs=out)
+
+
 def rnn_vision(vis_settings="Hermann"):
+    """ Returns a variation of the basic rnn_position_vision with only the
+    visual branch of the network
+    """
     vis_model = vis_net(settings=vis_settings)
 
     out = Flatten()(vis_model.output)
@@ -88,6 +117,9 @@ def rnn_vision(vis_settings="Hermann"):
 
 
 def rnn_position_vision_4(vis_settings="Hermann"):
+    """ Returns a variation of the basic rnn_position_vision but the
+    vision branch can take in 4 images
+    """
     pos_model = pos_net()
     vis_model = vis_net(settings=vis_settings, four_deep=True)
 
@@ -100,36 +132,37 @@ def rnn_position_vision_4(vis_settings="Hermann"):
 
     return Model(inputs=[pos_model.input, vis_model.input], outputs=out)
 
+def save_network_info(name, settings, func, save_dir):
+    print(f'\n\nSummary for position_vision with {settings} settings')
+    model = func(settings)
+    model.compile(optimizer=use_optimizer,
+                  loss=use_loss,
+                  metrics=use_metrics)
+    keras.utils.plot_model(model, f"{save_dir}/{name}_{settings}.png", show_shapes=True)
+    model.summary()
+    with open(f'{save_dir}/{name}_{settings}_summary.txt', "w") as f:
+        with redirect_stdout(f):
+            model.summary()
+
 
 if __name__ == "__main__":
     print("This script contains the basic network configurations considered in the research project.\n"
           "They are mostly permutations of the same basic model\n")
 
-
     use_optimizer = "adam"
     use_loss = "mean_squared_error"
     use_metrics = ["accuracy", "mse"]
 
-    cnn_settings = "James"
+    cnn_settings = "Hermann"
 
-    vp_model = rnn_position_vision(cnn_settings)
-    vp_model.compile(optimizer=use_optimizer,
-                     loss=use_loss,
-                     metrics=use_metrics)
-    keras.utils.plot_model(vp_model, "images/vp_model.png", show_shapes=True)
-    vp_model.summary()
+    save_dir = 'images'
 
-    vp4_model = rnn_position_vision_4(cnn_settings)
-    vp4_model.compile(optimizer=use_optimizer,
-                      loss=use_loss,
-                      metrics=use_metrics)
-    keras.utils.plot_model(vp4_model, "images/vp4_model.png", show_shapes=True)
-    vp4_model.summary()
+    networks = {
+        "rnn_pv": rnn_position_vision,
+        "rnn_pv4": rnn_position_vision_4,
+        "rnn_v": rnn_vision,
+        "pv": position_vision
+    }
 
-    v_model = rnn_vision(cnn_settings)
-    v_model.compile(optimizer=use_optimizer,
-                    loss=use_loss,
-                    metrics=use_metrics)
-    keras.utils.plot_model(v_model, "images/v_model.png", show_shapes=True)
-    v_model.summary()
-
+    for model_name in networks:
+        save_network_info(model_name, cnn_settings, networks[model_name], save_dir)
