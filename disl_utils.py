@@ -327,8 +327,6 @@ def split_demos(all_demos, train_split, num_demos):
     return _train_data, _train_images, _train_label, _num_train, _test_data, _test_images, _test_label, _num_test
 
 
-# todo: figure out if this still sets images to type none
-# When fixed, update program to run off of live demos too
 def _save_demo(_demo, example_path):
     # Save image data first, and then None the image data, and pickle
     left_shoulder_rgb_path = os.path.join(
