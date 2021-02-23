@@ -26,20 +26,34 @@ inputA = Input(shape=8)
 x = Dense(64, activation="tanh")(inputA)
 x = Dense(64, activation="tanh")(x)
 x = Dense(64, activation="tanh")(x)
-x = Flatten()(x)
 model_x = Model(inputs=inputA, outputs=x)
 
 print("\n---> Finished defining the position model.\n")
 
 # the second branch operates on the second input, the camera image
 # this input is the 128x128 image with 3 channels
-inputB = Input(shape=(128, 128, 4))
+inputB = Input(shape=(128, 128, 16))
 
 # Filters are an integer representing the dimensionality of the output space
-filters = (32, 64, 32)
+# Herman
+# filters = (32, 64, 32)
+
+# James (inspired by, the shape of the input is halved so we only do 7 CNN steps, not 8)
+filters = (32, 48, 64, 128, 192, 256, 256)
+
+# Mine
+# filters = ()
 
 # The size of the kernel window applied for each filter
-size = [(8, 8), (4, 4), (2, 2)]
+
+# Herman
+# size = [(8, 8), (4, 4), (3, 3)]
+
+# James
+size = [(3, 3), (3, 3), (3, 3), (3, 3), (3, 3), (3, 3), (2, 2)]
+
+# Mine
+# size = []
 
 # Stride defines how many pixels we move before the next convolution is applied
 #    Practically, this means the dimensions of the output will be the input / stride
@@ -47,7 +61,12 @@ size = [(8, 8), (4, 4), (2, 2)]
 #    Stride may also be a tuple for the height and length dimensions
 #
 #    It seems that the stride is usually half the kernel window's dimensions
-stride = [4, 2, 1]
+
+# Herman
+# stride = [4, 2, 1]
+
+# James
+stride = [2, 2, 2, 2, 2, 2, 2]
 
 chanDim = -1
 
@@ -73,7 +92,7 @@ for (i, f) in enumerate(filters):
     y = Conv2D(f, size[i], strides=stride[i], padding="same", activation="relu")(y)
     y = BatchNormalization(axis=chanDim)(y)
     y = Activation("relu")(y)
-    y = MaxPooling2D(pool_size=(2, 2))(y)
+    # y = MaxPooling2D((2, 2), padding="same")(y)  # neither group used max pooling
 
 y = Flatten()(y)
 y = Dense(16)(y)
@@ -96,11 +115,19 @@ print("\n---> Finished defining the vision model.\n")
 
 combined = Concatenate()([model_x.output, model_y.output])
 
-
+'''
 z = Dense(128, activation="relu")(combined)
 z = Reshape((1, 128))(z)
-z = LSTM(64, return_sequences=True, input_shape=(1, 1, 128))(z)
-z = Dense(128, activation="relu")(z)
+'''
+
+z = Reshape((1, combined.shape[1]))(combined)
+
+# This line seems to do nothing???
+# z = LSTM(128, return_sequences=True, input_shape=(1, 1, combined.shape[1]))(z)
+
+z = LSTM(128)(z)
+# why is return sequences True? What was that for?
+
 z = Dense(128, activation="relu")(z)
 z = Dense(8, activation="linear")(z)
 
@@ -111,18 +138,18 @@ model.compile(optimizer='adam',
 
 print("\n---> Finished compiling the combined model.\n")
 
-keras.utils.plot_model(model, "model.png", show_shapes=True)
+keras.utils.plot_model(model, "images/network_testing_model.png", show_shapes=True)
 
 print("\n---> Finished compiling the combined model.\n")
 
-model.save('saved_model/compile_demo')
+# model.save('saved_model/compile_demo')
 model.summary()
 
-print("\n---> Saved the combined model.\n")
+# print("\n---> Saved the combined model.\n")
 
-del model
+# del model
 
-model = keras.models.load_model('saved_model/compile_demo')
+# model = keras.models.load_model('saved_model/compile_demo')
 
-print("\n---> Loaded a saved model.\n")
+# print("\n---> Loaded a saved model.\n")
 
