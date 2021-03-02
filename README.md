@@ -34,7 +34,7 @@ These are the main files that should be executed in generating a data set and tr
 | `reinforcement_learner.py` | Currently a placeholder. This would load a model from `imitation_trained/` and continue training it with reinforcement learning before saving the final model in `reinforcement_trained/`. |
 | `demonstrator.py` | Loads a model from either directory of trained models and evaluates its performance on a task. |
 
-####Support files
+#### Support files
 
 These programs are extra tools that provide some utility the main workflow or contain objects called by them. 
 
