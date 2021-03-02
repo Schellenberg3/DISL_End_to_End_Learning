@@ -132,15 +132,16 @@ def rnn_position_vision_4(vis_settings="Hermann"):
 
     return Model(inputs=[pos_model.input, vis_model.input], outputs=out)
 
-def save_network_info(name, settings, func, dir):
+
+def save_network_info(name, settings, func, directory):
     print(f'\n\nSummary for position_vision with {settings} settings')
     model = func(settings)
     model.compile(optimizer=use_optimizer,
                   loss=use_loss,
                   metrics=use_metrics)
-    keras.utils.plot_model(model, f"{dir}/{name}_{settings}.png", show_shapes=True)
+    keras.utils.plot_model(model, f"{directory}/{name}_{settings}.png", show_shapes=True)
     model.summary()
-    with open(f'{dir}/{name}_{settings}_summary.txt', "w") as f:
+    with open(f'{directory}/{name}_{settings}_summary.txt', "w") as f:
         with redirect_stdout(f):
             model.summary()
 

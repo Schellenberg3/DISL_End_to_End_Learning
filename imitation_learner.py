@@ -4,6 +4,7 @@ from os import listdir
 import os
 import time
 from rlbench.observation_config import ObservationConfig
+from disl_networks import position_vision
 from disl_networks import rnn_vision
 from disl_networks import rnn_position_vision
 from disl_networks import rnn_position_vision_4
@@ -19,14 +20,15 @@ if __name__ == "__main__":
 
     # Network options. See disl_networks for explanation of cnn_settings.
     choice = "rnn_position_vision"
-    cnn_settings = "Hermann"
+    cnn_settings = "James"
+    domain_rand = "norm"  # "rand" or "norm", tells what it was trained with
 
     train_path = 'datasets/training/DislPickUpBlueCup/variation0/episodes'
     train_episodes = -1
-    epochs = 1
+    epochs = 4
 
-    test_path = 'datasets/training/DislPickUpBlueCup/variation0/episodes'
-    test_episodes = 20
+    test_path = 'datasets/DislPickUpBlueCup/variation0/episodes'
+    test_episodes = 0
 
     # Settings for compilation. Generally do not need to adjust these.
     use_optimizer = "adam"
@@ -41,6 +43,7 @@ if __name__ == "__main__":
     obs_config.set_all(True)
 
     models = {
+        "position_vision": (position_vision, split_data),
         "rnn_vision": (rnn_vision, split_data),
         "rnn_position_vision": (rnn_position_vision, split_data),
         "rnn_position_vision_4": (rnn_position_vision_4, split_data_4),
@@ -52,7 +55,23 @@ if __name__ == "__main__":
                   loss=use_loss,
                   metrics=use_metrics)
 
-    save_location = f'imitation_trained/{choice}_{cnn_settings}_{train_episodes}_ep'
+    print(f'\n[Info] Finished compiling the {choice} model with cnn_settings: {cnn_settings}')
+
+    # todo: eliminate redundancy in logic here (e.g. multiple calls to listdir()
+    # todo: verify that things save with the proper number now.
+    # todo: check that PyCharm updated this file correctly w/ edits made in sublime
+    try:
+        available_training = len(listdir(train_path))
+        if available_training < train_episodes:
+            exit(f'[ERROR] Exiting program. Only {available_training} demonstration episodes are '
+                 f'available for training at {train_path}, not the requested {train_episodes}')
+        elif train_episodes == -1:
+            train_episodes = available_training
+    except FileNotFoundError:
+        exit(f'[ERROR] Exiting program. It seems like no files exist at {test_path}')
+
+    # todo print this save location to the screen
+    save_location = f'imitation_trained/{choice}_{domain_rand}_{cnn_settings}_{train_episodes}_by_{epochs}'
 
     try:
         os.listdir(save_location)
@@ -60,39 +79,16 @@ if __name__ == "__main__":
               f' Are you sure you would like to do proceed? (y/n)')
         ans = input()
         if ans not in ['y', 'yes', 'Y', 'Yes']:
-            print(f'[Warn] Answer: {ans} not recognized. Exiting program without overriding the exiting model.')
-            exit()
+            exit(f'[Warn] Answer: {ans} not recognized. Exiting program without overriding the exiting model.')
     except FileNotFoundError:
         pass
 
-    print(f'\n[Info] Finished compiling the {choice} model with cnn_settings: {cnn_settings}')
     print(f'[Info] Will train with {train_episodes} demonstration episodes over {epochs} epochs.')
     print(f'[Info] Training demonstration episodes will be pulled from: {train_path}')
     print(f'[Info] {test_episodes} testing demonstration episodes will be pulled from: {test_path}')
 
-    try:
-        available_training = len(listdir(train_path))
-        if available_training < train_episodes:
-            print(f'[ERROR] Exiting program. Only {available_training} demonstration episodes are '
-                  f'available for training at {train_path}, not the requested {train_episodes}')
-            exit()
-        elif train_episodes == -1:
-            train_episodes = available_training
-    except FileNotFoundError:
-        pass
 
-    try:
-        available_testing = len(listdir(test_path))
-        if available_testing < train_episodes:
-            print(f'[ERROR] Exiting program. Only {available_testing} demonstration episodes are '
-                  f'available for testing at {test_path}, not the requested {test_episodes}')
-            exit()
-        elif test_episodes == -1:
-            test_episodes = available_testing
-    except FileNotFoundError:
-        print(f'[ERROR] Exiting program. It seems like no files exist at {test_path}')
-        exit()
-
+    # todo: eliminate the if statement and implement a try?
     if True:
         print(f'\n[Info] Ready to begin training on {train_episodes} training demonstration followed by '
               f'testing on {test_episodes} '

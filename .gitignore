@@ -1,5 +1,5 @@
 # Local machine-specific directories
-datasets/
+data/
 .idea/
 
 # Byte-compiled / optimized / DLL files
