@@ -87,6 +87,8 @@ def multiprocess_demos(mp_action_mode,
 
 if __name__ == '__main__':
     """------ USER VARIABLES -----"""
+    # Todo: use the EndToEnd config class to make this more general
+
     # todo: make this code more general for variations of tasks
     # Specify requested task
     requested_task = DislPickUpBlueCup #PickUpCup

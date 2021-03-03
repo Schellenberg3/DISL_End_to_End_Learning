@@ -28,6 +28,8 @@ if __name__ == '__main__':
     # todo: handle using ur5 and non-panda robots
     robot = 'panda'  # Only a naive change.  Will cause errors if set to
 
+    # todo: handle v4 syler observations (list? where regular only pull the first? Pop/push and v4 starts populated with 4?)
+
     """------ SET UP -----"""
 
     try:

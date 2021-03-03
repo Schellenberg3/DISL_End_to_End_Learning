@@ -1,139 +1,107 @@
+from rlbench.observation_config import ObservationConfig
+from utils import get_order
+from utils import load_data
+from utils import format_data
+from utils import split_data
+from contextlib import redirect_stdout
+from utils import EndToEndConfig
+from utils import check_yes
+from utils import format_time
+from os.path import join
 import numpy as np
-from tensorflow import keras
-from os import listdir
 import os
 import time
-from rlbench.observation_config import ObservationConfig
-from disl_networks import position_vision
-from disl_networks import rnn_vision
-from disl_networks import rnn_position_vision
-from disl_networks import rnn_position_vision_4
-from disl_utils import get_order
-from disl_utils import load_data
-from disl_utils import format_data
-from disl_utils import split_data
-from disl_utils import split_data_4
-
 
 if __name__ == "__main__":
+    # todo add functionality to load a saved model and evaluate it
+    print('[Info] Starting imitation_learner.py')
     """------ USER VARIABLES -----"""
 
-    # Network options. See disl_networks for explanation of cnn_settings.
-    choice = "rnn_position_vision"
-    cnn_settings = "James"
-    domain_rand = "norm"  # "rand" or "norm", tells what it was trained with
+    config = EndToEndConfig()
+    train_dir, test_dir = config.set_directories()
+    (train_amount, test_amount), epochs = config.get_episode_amounts(train_dir, test_dir)
+    network_name, network, split = config.get_network()
 
-    train_path = 'datasets/training/DislPickUpBlueCup/variation0/episodes'
-    train_episodes = -1
-    epochs = 4
-
-    test_path = 'datasets/DislPickUpBlueCup/variation0/episodes'
-    test_episodes = 0
-
-    # Settings for compilation. Generally do not need to adjust these.
+    # Settings for network compilation. Generally do not need to adjust these.
     use_optimizer = "adam"
     use_loss = "mean_squared_error"
     use_metrics = ["accuracy", "mse"]
 
     """----- SET UP -----"""
 
-    print(f'[Info] Beginning to compile the {choice} model with cnn_settings: {cnn_settings}')
-
     obs_config = ObservationConfig()
     obs_config.set_all(True)
 
-    models = {
-        "position_vision": (position_vision, split_data),
-        "rnn_vision": (rnn_vision, split_data),
-        "rnn_position_vision": (rnn_position_vision, split_data),
-        "rnn_position_vision_4": (rnn_position_vision_4, split_data_4),
-    }
-    model = models[choice][0](cnn_settings)
-    split = models[choice][1]
+    network.compile(optimizer=use_optimizer,
+                    loss=use_loss,
+                    metrics=use_metrics)
 
-    model.compile(optimizer=use_optimizer,
-                  loss=use_loss,
-                  metrics=use_metrics)
+    print(f'\n[Info] Finished compiling the network.')
 
-    print(f'\n[Info] Finished compiling the {choice} model with cnn_settings: {cnn_settings}')
-
-    # todo: eliminate redundancy in logic here (e.g. multiple calls to listdir()
-    # todo: verify that things save with the proper number now.
-    # todo: check that PyCharm updated this file correctly w/ edits made in sublime
+    network_save_dir = join(config.network_root,
+                         'imitation',
+                         f'{network_name}_{train_amount}_by_{epochs}')
+    print(f'\n[Info] The network will be saved in {network_save_dir}')
     try:
-        available_training = len(listdir(train_path))
-        if available_training < train_episodes:
-            exit(f'[ERROR] Exiting program. Only {available_training} demonstration episodes are '
-                 f'available for training at {train_path}, not the requested {train_episodes}')
-        elif train_episodes == -1:
-            train_episodes = available_training
-    except FileNotFoundError:
-        exit(f'[ERROR] Exiting program. It seems like no files exist at {test_path}')
-
-    # todo print this save location to the screen
-    save_location = f'imitation_trained/{choice}_{domain_rand}_{cnn_settings}_{train_episodes}_by_{epochs}'
-
-    try:
-        os.listdir(save_location)
-        print(f'[WARN] There is already a network at {save_location} training will override this. '
-              f' Are you sure you would like to do proceed? (y/n)')
-        ans = input()
-        if ans not in ['y', 'yes', 'Y', 'Yes']:
-            exit(f'[Warn] Answer: {ans} not recognized. Exiting program without overriding the exiting model.')
+        os.listdir(network_save_dir)
+        print(f'\n[WARN] There is already a network at {network_save_dir} training will override this.')
+        if not check_yes('Are you sure you would like to do override this? (y/n) '):
+            exit(f'\n[Warn] Answer not recognized. Exiting program without overriding the exiting model.')
     except FileNotFoundError:
         pass
 
-    print(f'[Info] Will train with {train_episodes} demonstration episodes over {epochs} epochs.')
-    print(f'[Info] Training demonstration episodes will be pulled from: {train_path}')
-    print(f'[Info] {test_episodes} testing demonstration episodes will be pulled from: {test_path}')
+    print(f'\n[Info] Pre-training summary: ')
+    print(f'[Info] Will train with {train_amount} episodes over {epochs} '
+          f'epochs with {test_amount} testing episodes.')
+    print(f'[Info] Training episodes will be pulled from: {train_dir}')
+    print(f'[Info] Testing episodes will be pulled from: {test_dir}')
+    print(f'[Info] The network will be saved at: {network_save_dir}')
 
+    if not check_yes('\nAre you ready to begin? (y/n) '):
+        exit(f'\n[Warn] Answer not recognized. Exiting program without creating a new model.')
+    print('')
 
-    # todo: eliminate the if statement and implement a try?
-    if True:
-        print(f'\n[Info] Ready to begin training on {train_episodes} training demonstration followed by '
-              f'testing on {test_episodes} '
-              f'Are you ready to begin? (y/n)')
-        ans = input()
-        if ans not in ['y', 'yes', 'Y', 'Yes']:
-            print(f'[Warn] Answer: {ans} not recognized. Exiting program without creating a new model.')
-            exit()
+    train_order = get_order(train_amount, epochs)
 
-        train_order = get_order(train_episodes, epochs)
+    start_train = time.perf_counter()
 
-        start_train = time.perf_counter()
+    # todo: write function to view/validate that training data is loaded properly
+    # todo: start data from random initial position
+    # todo: make sure that vision only is loaded properly ( a function 'get_x_y()'?)
+    # todo learn more about array splicing in numpy
 
-        # todo: write function to view/validate that training data is loaded properly
-        # todo: start data from random initial position
-        # todo: make sure that vision only is loaded properly ( a function 'get_x_y()'?)
-        # todo learn more about array splicing in numpy
+    total_steps = epochs*train_amount
+    display_every = int(total_steps/100) + 1
+    for i, train in enumerate(train_order):
+        demo = load_data(train_dir, train, obs_config)
+        demo = format_data(demo)
+        train_data, train_images, train_label = split(demo)
 
-        for train in train_order:
-            demo = load_data(train_path, train, obs_config)
-            demo = format_data(demo)
-            train_data, train_images, train_label = split(demo)
+        network.fit(x=[np.asarray(train_data),
+                       np.asarray(train_images)],
+                    y=np.asarray(train_label),
+                    verbose=0,
+                    shuffle=False,
+                    epochs=epochs,
+                    workers=os.cpu_count(),
+                    use_multiprocessing=True)
 
-            model.fit(x=[np.asarray(train_data),
-                         np.asarray(train_images)],
-                      y=np.asarray(train_label),
-                      verbose=0,
-                      shuffle=False,
-                      epochs=epochs,
-                      workers=os.cpu_count(),
-                      use_multiprocessing=True)
+        if i % display_every == 0:
+            print(f'[Info] {i/total_steps * 100:3.1f}% Complete '
+                  f'{format_time((time.perf_counter() - start_train)*(total_steps - i)/(i+1))} remaining. '
+                  f'At episode {i - train_amount*int(i/train_amount) + 1} of {train_amount} '
+                  f'in epoch {int(i/train_amount)+1} of {epochs}.')
 
-        end_train = time.perf_counter()
+    end_train = time.perf_counter()
 
-        print(f'[Info] Finished training model. Training took {(end_train - start_train)} seconds.')
+    print(f'\n[Info] Finished training model. Training took {format_time(end_train - start_train)} seconds.')
 
-        # todo: verify that the save image and summary work properly
-        model.save(save_location)
+    # todo: verify that the save image and summary work properly
+    network.save(network_save_dir)
 
-        keras.utils.plot_model(model, f'{save_location}/model_image.png', show_shapes=True)
-        model.summary()
+    print(f'\n[Info] Saved the model at: {network_save_dir}')
 
-        print(f'[Info] Saved the model at: {save_location}')
-
-    print(f'[info] Beginning to evaluate the model on {test_episodes} test demonstration episodes')
+    print(f'\n[info] Beginning to evaluate the model on {test_amount} test demonstration episodes')
 
     max_acc = -1
     max_acc_num = -1
@@ -141,21 +109,21 @@ if __name__ == "__main__":
     min_acc_num = -1
     avg_acc = 0
 
-    test_order = get_order(test_episodes)
+    test_order = get_order(test_amount)
     tot_acc = 0
 
     for test in test_order:
         print(test)
-        demo = load_data(test_path, test, obs_config)
+        demo = load_data(test_data, test, obs_config)
         demo = format_data(demo)
         test_data, test_images, test_label = split_data(demo)
 
-        loss, acc = model.evaluate(x=[np.asarray(test_data),
-                                      np.asarray(test_images)],
-                                   y=[np.asarray(test_label)],
-                                   verbose=0,
-                                   workers=os.cpu_count(),
-                                   use_multiprocessing=True)
+        loss, acc = network.evaluate(x=[np.asarray(test_data),
+                                        np.asarray(test_images)],
+                                     y=[np.asarray(test_label)],
+                                     verbose=0,
+                                     workers=os.cpu_count(),
+                                     use_multiprocessing=True)
 
         print(acc)
         print(type(acc))
@@ -169,17 +137,21 @@ if __name__ == "__main__":
             min_acc = acc
             min_acc_num = test
 
-    avg_acc = avg_acc / len(test_order)
+    try:
+        avg_acc = avg_acc / len(test_order)
+    except ZeroDivisionError:
+        avg_acc = 'NO EVALUATION'
 
     evaluation_summary = f'Found an average accuracy of {avg_acc}% with a max of {max_acc} ' \
-                         f'at episode{max_acc_num} and a min of {min_acc} at episode{min_acc_num}'
+                         f'at episode{max_acc_num} and a min of {min_acc} at episode{min_acc_num}.' \
+                         f'\n\n{test_amount} episodes were used for testing.'
 
     print('[Info] ', evaluation_summary)
 
-    with open(f'{save_location}/model_summary.txt', "w") as f:
-        f.write(f'Training of {choice} on {train_episodes} took a total time of '
-                f'{(end_train - start_train)} seconds.\n\n')
-        f.write(evaluation_summary + '\n\n')
-        f.write(model.summary())
+    with open(f'{network_save_dir}/model_summary.txt', "w") as f:
+        with redirect_stdout(f):
+            network.summary()
+        f.write(f'\n\nTraining took a total of {format_time(end_train - start_train)}.'
+                f'\n\n{evaluation_summary}')
 
     print(f'[Info] Successfully exiting program.')
