@@ -7,7 +7,7 @@ from rlbench import VisualRandomizationConfig
 from rlbench.tasks import ReachTarget
 from rlbench.tasks import DislPickUpBlueCup
 from rlbench.tasks import PickUpCup
-from disl_utils import save_demos
+from utils import save_demos
 from multiprocessing import Process
 from os import listdir
 import os
@@ -91,14 +91,14 @@ if __name__ == '__main__':
 
     # todo: make this code more general for variations of tasks
     # Specify requested task
-    requested_task = DislPickUpBlueCup #PickUpCup
+    requested_task = ReachTarget  # DislPickUpBlueCup  # PickUpCup
 
     # should the domain be randomized?
-    domain_rand = True
-    dr_images = 'datasets/assets/textures'  # relative path from this file's directory
+    domain_rand = False
+    dr_images = '/assets/textures'  # relative path from this file's directory
 
     # Select where the demos are saved here
-    root_save_path = 'datasets/randomized/training/DislPickUpBlueCup'
+    root_save_path = 'data/training/ReachTarget'
     #    Note: from the root demos are saved .../variation#/episodes/episode#
     #    the count for variations and the episodes within a variation start at 0
     #    It is important that the dataset's collection of episodes be continuous
@@ -108,7 +108,7 @@ if __name__ == '__main__':
     #    it until there are at least the desired number.
 
     # Define the total number of demos you'd like in the folder
-    num_total_demos = 2000
+    num_total_demos = 4000
 
     # Define how many demos to get in each loop.  Demos are saved after each loop.
     num_demo_per_loop = 1
@@ -118,8 +118,7 @@ if __name__ == '__main__':
 
     """----- SET UP -----"""
     live_demos = True
-    obs_config = ObservationConfig()
-    obs_config.set_all(True)  # todo: Adjust this for UR5
+    obs_config = ObservationConfig() # todo: Adjust this for UR5 (verify that set_all(true) isnt needed)
     action_mode = ActionMode(ArmActionMode.ABS_JOINT_POSITION)
 
     processes = []
@@ -146,7 +145,6 @@ if __name__ == '__main__':
         except FileNotFoundError:
             print(f'[ERROR] No dataset exists at {full_save_path} or the one that does is broken.')
             exit()
-
 
         print(f'[Info] A total of {len(listdir(full_save_path))} '
               f'demonstration episodes have been collected with {total_num_steps} total data points.'

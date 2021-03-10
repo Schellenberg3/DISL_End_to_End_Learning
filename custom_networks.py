@@ -77,7 +77,7 @@ def rnn_position_vision(vis_settings="Hermann"):
     combined = Concatenate()([pos_model.output, vis_model.output])
 
     out = Reshape((1, combined.shape[1]))(combined)
-    out = LSTM(128)(out)
+    out = LSTM(128)(out)  # todo return sequences = true?
     out = Dense(128, activation="relu")(out)
     out = Dense(8, activation="linear")(out)
 
@@ -95,25 +95,9 @@ def position_vision(vis_settings="Hermann"):
 
     out = Reshape((1, combined.shape[1]))(combined)
     out = Dense(128, activation="relu")(out)
-    out = Dense(128, activation="relu")(out)
     out = Dense(8, activation="linear")(out)
 
     return Model(inputs=[pos_model.input, vis_model.input], outputs=out)
-
-
-def rnn_vision(vis_settings="Hermann"):
-    """ Returns a variation of the basic rnn_position_vision with only the
-    visual branch of the network
-    """
-    vis_model = vis_net(settings=vis_settings)
-
-    out = Flatten()(vis_model.output)
-    out = Reshape((1, out.shape[1]))(out)
-    out = LSTM(128)(out)
-    out = Dense(128, activation="relu")(out)
-    out = Dense(8, activation="linear")(out)
-
-    return Model(inputs=vis_model.input, outputs=out)
 
 
 def rnn_position_vision_4(vis_settings="Hermann"):
@@ -127,6 +111,22 @@ def rnn_position_vision_4(vis_settings="Hermann"):
 
     out = Reshape((1, combined.shape[1]))(combined)
     out = LSTM(128)(out)
+    out = Dense(128, activation="relu")(out)
+    out = Dense(8, activation="linear")(out)
+
+    return Model(inputs=[pos_model.input, vis_model.input], outputs=out)
+
+
+def position_vision_4(vis_settings="Hermann"):
+    """ Returns a variation of the basic rnn_position_vision but the
+    vision branch can take in 4 images
+    """
+    pos_model = pos_net()
+    vis_model = vis_net(settings=vis_settings, four_deep=True)
+
+    combined = Concatenate()([pos_model.output, vis_model.output])
+
+    out = Reshape((1, combined.shape[1]))(combined)
     out = Dense(128, activation="relu")(out)
     out = Dense(8, activation="linear")(out)
 
@@ -154,15 +154,15 @@ if __name__ == "__main__":
     use_loss = "mean_squared_error"
     use_metrics = ["accuracy", "mse"]
 
-    cnn_settings = "Hermann"
+    cnn_settings = "James"
 
-    save_dir = 'images'
+    save_dir = 'network_info'
 
     networks = {
         "rnn_pv": rnn_position_vision,
+        "pv": position_vision,
         "rnn_pv4": rnn_position_vision_4,
-        "rnn_v": rnn_vision,
-        "pv": position_vision
+        "pv4": position_vision_4,
     }
 
     for model_name in networks:

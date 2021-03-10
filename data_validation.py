@@ -12,16 +12,16 @@ from rlbench import VisualRandomizationConfig
 import numpy as np
 import time
 # Custom writen imports
-from disl_utils import save_demos
-from disl_utils import format_data
-from disl_utils import get_order
-from disl_utils import load_data
-from disl_utils import split_data
+from utils import save_demos
+from utils import format_data
+from utils import get_order
+from utils import load_data
+from utils import split_data
 
 
 if __name__ == '__main__':
     num_live_demos = 3
-    demo_save_path = 'datasets/misc_data/data_validation'
+    demo_save_path = 'data/misc_data/data_validation'
 
     domain_rand = False
 
@@ -59,10 +59,44 @@ if __name__ == '__main__':
     demos[L]               -> list[list[observation]] list observations at each time step
     demos[L][M].front_rgb  -> list[list[class.member_variable]] float or int of state N at observation M, demo L
     '''
+    pos_max = np.zeros(8)
+    dep_max = 0
+    img_max = 0
+    pos_min = np.ones(8)*float('inf')
+    dep_min = float('inf')
+    img_min = float('inf')
+    for L in range(len(live_demos)):
+        for M in range(len(live_demos[L])):
+            if live_demos[L][M].front_rgb.max() > img_max:
+                img_max = live_demos[L][M].front_rgb.max()
+            elif live_demos[L][M].front_rgb.min() < img_min:
+                img_min = live_demos[L][M].front_rgb.min()
 
-    demos = live_demos.copy()  # I don't like this either but it is needed because save_demos() sets images to None
-    save_demos(demos, demo_save_path)
-    del demos
+            if live_demos[L][M].front_depth.max() > dep_max:
+                dep_max = live_demos[L][M].front_depth.max()
+            elif live_demos[L][M].front_depth.min() < dep_min:
+                dep_min = live_demos[L][M].front_depth.min()
+
+            for I in range(len(live_demos[L][M].joint_positions)):
+                if live_demos[L][M].joint_positions[I] > pos_max[I]:
+                    pos_max[I] = live_demos[L][M].joint_positions[I]
+                elif live_demos[L][M].joint_positions[I] < pos_min[I]:
+                    pos_min[I] = live_demos[L][M].joint_positions[I]
+
+            if live_demos[L][M].gripper_open > pos_max[-1]:
+                pos_max[-1] = live_demos[L][M].gripper_open
+            if live_demos[L][M].gripper_open < pos_min[-1]:
+                pos_min[-1] = live_demos[L][M].gripper_open
+
+    print(f'Summary of data from the {num_live_demos} demos: \n'
+          f'Max image value: {img_max}\n'
+          f'Min image value: {img_min}\n'
+          f'Max depth value: {dep_max}\n'
+          f'Min depth value: {dep_min}\n'
+          f'Max positions: {pos_max}\n'
+          f'Min positions: {pos_min}\n')
+
+    save_demos(live_demos.copy(), demo_save_path)
 
     load_demos = []
     for i in range(num_live_demos):
@@ -77,17 +111,18 @@ if __name__ == '__main__':
                 print(f'[ERROR] Joint position not saved properly at episode {i} step {j}')
             steps += 1
 
-    print('live_demos == load_demos  :  ', live_demos == load_demos)
-
     replay = True
+    action = np.hstack((load_demos[0][0].joint_positions, load_demos[0][0].gripper_open))
     while replay:
         for i in range(len(live_demos)):
             task.reset()
             time.sleep(0.5)
             for j in range(len(live_demos[i])):
-                action = np.hstack((load_demos[i][j].joint_positions, load_demos[i][j].gripper_open))
+                # action = np.hstack(([i][j].joint_positions, load_demos[i][j].gripper_open))
+                action[0] -= 0.1
                 print(f'[{i}][{j}] Action is: {action}')
-                task.step(action)
+                current_obs = task.step(action)
+                print(f'Current obs is {current_obs[0].joint_positions[0]}')
                 # todo: seems to be a jolt between episodes, is there a way to avoid this?
         loop_again = input('Loop over the motions again? (y/n): ')
         if loop_again not in ['y', 'Y', 'yes', 'Yes']:

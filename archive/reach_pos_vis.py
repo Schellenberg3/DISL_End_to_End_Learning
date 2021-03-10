@@ -109,7 +109,7 @@ task = env.get_task(ReachTarget)
 
 
 if live_demos:
-    num_live_demos = 200
+    num_live_demos = 10
     demos = task.get_demos(num_live_demos, live_demos=live_demos)  # -> List[List[Observation]]
 
     save_path = 'train_demos_random/reach_target/'
@@ -146,9 +146,9 @@ if no_model:
 
     print("\n---> Finished compiling the model.\n")
 
-    train_path = 'train_demos_random/reach_target/variation0/episodes'
-    train_episodes = 200
-    epochs = 10
+    train_path = '../data/training/DislPickUpBlueCup/variation0/episodes'
+    train_episodes = 10
+    epochs = 1
     train_order = get_order(train_episodes, epochs)
     count = 0
 

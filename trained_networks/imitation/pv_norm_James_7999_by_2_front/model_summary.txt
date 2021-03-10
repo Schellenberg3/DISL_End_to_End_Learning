@@ -1,0 +1,7 @@
+
+
+Training took a total of  10h 47m 14s.
+
+Evaluated at 2021-03-08 23:00:37.905131 
+Found an average accuracy of 0.0% with a max of 0.0 at episode 14 and a min of 0.0 at episode 6.
+20 episodes were used for testing.

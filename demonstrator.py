@@ -16,7 +16,7 @@ import numpy as np
 
 if __name__ == '__main__':
     """------ USER VARIABLES -----"""
-    model_dir = f'imitation_trained'
+    model_dir = f'trained_networks/imitation'
 
     env_type = 'regular'  # regular or random
 
@@ -85,13 +85,6 @@ if __name__ == '__main__':
         image = np.expand_dims(np.dstack((obs.front_rgb, obs.front_depth)), 0)
         state = np.expand_dims(np.append(obs.joint_positions, obs.gripper_open), 0)
         action = model.predict(x=[state, image])
-        # print(action[0][7])
-        # todo: Why aren't we actually grasping the cup?
-        #     Gripper value 1 -> open, gripper value 0 -> closed
-        #     Seems like something isn't right in training
-        #
-        #     Should review the model's structure, training. Verify that is *is* acting as expected
-        #     Write a module to verify the data's structure
         obs, reward, terminate = task.step(action.flatten())
 
     env.shutdown()

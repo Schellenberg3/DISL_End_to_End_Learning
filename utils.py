@@ -7,7 +7,7 @@ from PIL import Image
 from custom_networks import rnn_position_vision
 from custom_networks import rnn_position_vision_4
 from custom_networks import position_vision
-from custom_networks import rnn_vision
+from custom_networks import position_vision_4
 from os import listdir
 from os.path import join
 import pickle
@@ -18,6 +18,8 @@ import random
 
 
 # todo: document + type assist each function
+# Todo: remove unused functions
+
 def check_and_make(directory):
     if not os.path.exists(directory):
         os.makedirs(directory)
@@ -41,10 +43,7 @@ def save_demos(demos, path, start_episode=0):
 
 
 def load_data(path, example_num, obs_config):
-
-    # check if path exists
-
-    example_path = path + '/episode%d' % example_num
+    example_path = join(path, f'episode{example_num}')
 
     with open(join(example_path, LOW_DIM_PICKLE), 'rb') as f:
         obs = pickle.load(f)
@@ -212,12 +211,32 @@ def format_data(demo):
         demo[step].left_shoulder_rgb = demo[step].left_shoulder_rgb / 255
         demo[step].right_shoulder_rgb = demo[step].right_shoulder_rgb / 255
         demo[step].wrist_rgb = demo[step].wrist_rgb / 255
-        demo[step].front_mask = demo[step].front_mask / 255
-        demo[step].left_shoulder_mask = demo[step].left_shoulder_mask / 255
-        demo[step].right_shoulder_mask = demo[step].right_shoulder_mask / 255
-        demo[step].wrist_mask = demo[step].wrist_mask / 255
+
+        demo[step].joint_positions = scale_pose(demo[step].joint_positions,
+                                                old_min=-3.14,
+                                                old_max=3.14,
+                                                new_min=0,
+                                                new_max=1)
 
     return demo
+
+
+def scale_pose(array, old_min=0., old_max=1., new_min=-3.14, new_max=3.14):
+    """
+    Scales all values of an array from one range to another. By default this is from [0,1]
+    to [-3.14, 3.14].  Used to normalize position values in training.  When using a network this
+    should be called on the position (but not gripper!) part of the output.
+
+    :param array: Old values
+    :param old_min: Old starting value
+    :param old_max: Old ending value
+    :param new_min: New starting value
+    :param new_max: New ending value
+    :return: New values
+    """
+    for i in range(len(array)):
+        array[i] = (new_max - new_min)*(array[i] - old_max)/(old_max - old_min) + new_max
+    return array
 
 
 def split_data(demo):
@@ -225,17 +244,19 @@ def split_data(demo):
     images = []
     label = []
 
+    # todo option for using front or wrist
+
     for step in range(len(demo)):
         data.append(np.append(demo[step].joint_positions,
-                               demo[step].gripper_open))
-        images.append(np.dstack((demo[step].front_rgb,
-                                 demo[step].front_depth)))
+                              demo[step].gripper_open))
+        images.append(np.dstack((demo[step].wrist_rgb,
+                                 demo[step].wrist_depth)))
         try:
             label.append(np.append(demo[step + 1].joint_positions,
-                                    demo[step + 1].gripper_open))
+                                   demo[step + 1].gripper_open))
         except IndexError:
             label.append(np.append(demo[step].joint_positions,
-                                    demo[step].gripper_open))
+                                   demo[step].gripper_open))
 
     return data, images, label
 
@@ -477,9 +498,9 @@ class EndToEndConfig:
         self.custom_networks = {"position_vision": ("pv",
                                                     position_vision,
                                                     split_data),
-                                "rnn_vision": ("rnn-v",
-                                               rnn_vision,
-                                               split_data),
+                                "position_vision_4": ("pv4",
+                                                      position_vision_4,
+                                                      split_data_4),
                                 "rnn_position_vision": ("rnn-pv",
                                                         rnn_position_vision,
                                                         split_data),
@@ -547,16 +568,19 @@ class EndToEndConfig:
         i = 0  # not enumerate -only count if the item in dataset_root is a folder with children
         print(f'\nThe data from the following directories may be used: ')
         for folder in listdir(join(self.data_root)):
-            for data in listdir(join(self.data_root, folder)):
-                possible_data_set.append(join(folder, data))
-                try:
-                    num = len(listdir(join(self.data_root, possible_data_set[i], 'variation0', 'episodes')))
-                except FileNotFoundError:
-                    num = 'NONE'
-                print('{:.<20s}{:.<20s}{:.<5s}'.format(f'Directory {i}',
-                                                       f'{num} episodes',
-                                                       f'{possible_data_set[i]}'))
-                i += 1
+            try:
+                for data in listdir(join(self.data_root, folder)):
+                    possible_data_set.append(join(folder, data))
+                    try:
+                        num = len(listdir(join(self.data_root, possible_data_set[i], 'variation0', 'episodes')))
+                    except FileNotFoundError:
+                        num = 'NONE'
+                    print('{:.<20s}{:.<20s}{:.<5s}'.format(f'Directory {i}',
+                                                           f'{num} episodes',
+                                                           f'{possible_data_set[i]}'))
+                    i += 1
+            except NotADirectoryError:
+                pass
 
         try:
             train_num = int(input('\nEnter directory # for training: '))
