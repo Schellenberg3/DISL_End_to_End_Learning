@@ -1,0 +1,7 @@
+
+
+Training took a total of   5h  1m 15s.
+
+Evaluated at 2021-03-10 14:17:02.498791 
+Found an average accuracy of NO EVALUATION% with a max of -1 at episode -1 and a min of inf at episode -1.
+0 episodes were used for testing.
