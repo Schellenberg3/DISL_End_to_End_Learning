@@ -4,10 +4,10 @@ from rlbench.backend.utils import rgb_handles_to_mask
 from rlbench.backend.utils import image_to_float_array
 from rlbench.utils import _resize_if_needed
 from PIL import Image
-from custom_networks import rnn_position_vision
-from custom_networks import rnn_position_vision_4
-from custom_networks import position_vision
-from custom_networks import position_vision_4
+from utils.networks import rnn_position_vision
+from utils.networks import rnn_position_vision_4
+from utils.networks import position_vision
+from utils.networks import position_vision_4
 from os import listdir
 from os.path import join
 import pickle
