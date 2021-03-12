@@ -1,12 +1,31 @@
-import os
-import time
+from config import EndToEndConfig
+from os.path import join
+from os import listdir
+from os import renames
 import numpy as np
+import time
 
 if __name__ == '__main__':
-    broken_dataset_dir = 'datasets/testing/DislPickUpBlueCup/variation0/episodes'
+
+    config = EndToEndConfig()
+
+    config.list_data_set_directories()
+
+    dir_num = None
+    try:
+        dir_num = int(input('\nSelect a directory # to check: '))
+        if dir_num < 0 or dir_num > len(config.possible_data_set):
+            exit('\n[Error] Please enter a valid index above zero.')
+    except (IndexError, ValueError) as e:
+        exit('\n[Error] Selection should be an integer. Exiting program.')
+
+    broken_dataset_dir = join(config.data_root,
+                              config.possible_data_set[dir_num],
+                              'variation0',
+                              'episodes')
 
     try:
-        dir_to_rename = os.listdir(broken_dataset_dir)
+        dir_to_rename = listdir(broken_dataset_dir)
         num_to_rename = len(dir_to_rename)
     except FileNotFoundError:
         dir_to_rename = None
@@ -14,14 +33,14 @@ if __name__ == '__main__':
         exit(f'[ERROR] The directory {broken_dataset_dir} was not found. Exiting program without '
              f'altering any files.')
 
-    print(f'[Info] Renaming {num_to_rename} episodes in a broken dataset at: {broken_dataset_dir}\n'
+    print(f'\n[Info] Renaming {num_to_rename} episodes in a broken dataset at: {broken_dataset_dir}\n'
           f'[Info] Note that the original order of the numbers is not necessarily preserved')
 
     ans = input(f'\n[Info] Please verify that this is correct. Are you ready for the renaming to begin? (y/n): ')
     if ans not in ['y', 'yes', 'Y', 'Yes']:
         exit(f'[Warn] Answer: {ans} not recognized. Exiting program without altering any files.')
 
-    print('[Info] Begininng to rename files, do not exit program...')
+    print('[Info] Beginning to rename files, do not exit program...')
 
     count = []
 
@@ -30,9 +49,9 @@ if __name__ == '__main__':
     # All files are given temp names first to avoid conflict
     for i, dir_name in enumerate(dir_to_rename):
         old_name = f'{broken_dataset_dir}/{dir_name}'
-        count.append(len(os.listdir(f'{old_name}/front_rgb')))
+        count.append(len(listdir(f'{old_name}/front_rgb')))
         temp_name = f'{broken_dataset_dir}/episode{i}__temp'
-        os.renames(old_name, temp_name)
+        renames(old_name, temp_name)
 
     count = np.asarray(count)
     avg = np.mean(count)
@@ -42,11 +61,11 @@ if __name__ == '__main__':
     min_size = [float('inf'), '']
     max_size = [-1, '']
 
-    for i, dir_name in enumerate(os.listdir(broken_dataset_dir)):
+    for i, dir_name in enumerate(listdir(broken_dataset_dir)):
         old_name = f'{broken_dataset_dir}/{dir_name}'
-        size = len(os.listdir(f'{old_name}/front_rgb'))
+        size = len(listdir(f'{old_name}/front_rgb'))
         new_name = f'{broken_dataset_dir}/episode{i}'
-        os.renames(old_name, new_name)
+        renames(old_name, new_name)
 
         if size < min_size[0]:
             min_size[0] = size

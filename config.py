@@ -23,7 +23,7 @@ class EndToEndConfig:
         """
         # DO NOT MOVE THIS FILE FROM THE MAIN FOLDER. WILL BREAK DIRECTORY LOCATION ASSUMPTION
         self.data_root = join(dirname(realpath(__file__)), 'data')
-        self._possible_data_set = []
+        self.possible_data_set = []
 
         self.network_root = join(dirname(realpath(__file__)), 'networks')
         self.network_sub_dir = ['imitation', 'reinforcement']
@@ -245,14 +245,14 @@ class EndToEndConfig:
         for folder in listdir(join(self.data_root)):
             try:
                 for data in listdir(join(self.data_root, folder)):
-                    self._possible_data_set.append(join(folder, data))
+                    self.possible_data_set.append(join(folder, data))
                     try:
-                        num = len(listdir(join(self.data_root, self._possible_data_set[i], 'variation0', 'episodes')))
+                        num = len(listdir(join(self.data_root, self.possible_data_set[i], 'variation0', 'episodes')))
                     except FileNotFoundError:
                         num = 'NONE'
                     print('{:.<20s}{:.<20s}{:.<5s}'.format(f'Directory {i}',
                                                            f'{num} episodes',
-                                                           f'{self._possible_data_set[i]}'))
+                                                           f'{self.possible_data_set[i]}'))
                     i += 1
             except NotADirectoryError:
                 pass
@@ -277,8 +277,8 @@ class EndToEndConfig:
             elif train_num < 0 or test_num < 0:
                 exit('\n[ERROR] Selections must be greater than zero. Exiting program.')
 
-            train_dir = join(self.data_root, self._possible_data_set[train_num], 'variation0', 'episodes')
-            test_dir = join(self.data_root, self._possible_data_set[test_num], 'variation0', 'episodes')
+            train_dir = join(self.data_root, self.possible_data_set[train_num], 'variation0', 'episodes')
+            test_dir = join(self.data_root, self.possible_data_set[test_num], 'variation0', 'episodes')
 
             return train_dir, test_dir
         except (ValueError, IndexError) as e:
