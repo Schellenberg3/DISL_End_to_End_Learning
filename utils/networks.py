@@ -24,7 +24,7 @@ def pos_net():
     return Model(inputs=pos_input, outputs=pos)
 
 
-def vis_net(settings="Hermann", four_deep=False):
+def vis_net(settings="James", four_deep=False):
     """Returns the standard vision part of the network.
     Either for the current observation or current + prior 3 observations
     """
@@ -32,6 +32,8 @@ def vis_net(settings="Hermann", four_deep=False):
         vis_input = Input(shape=(128, 128, 4))
     else:
         vis_input = Input(shape=(128, 128, 16))
+
+
 
     if settings == "Hermann":
         # Using a Hermann inspired network:
@@ -67,7 +69,7 @@ def vis_net(settings="Hermann", four_deep=False):
     return Model(inputs=vis_input, outputs=vis)
 
 
-def rnn_position_vision(vis_settings="Hermann"):
+def rnn_position_vision(vis_settings="James"):
     """This is the 'basic' network for the research project.
     This returns a network with vision and proprioception that are concatenated to a LSTM network
     """
@@ -84,7 +86,7 @@ def rnn_position_vision(vis_settings="Hermann"):
     return Model(inputs=[pos_model.input, vis_model.input], outputs=out)
 
 
-def position_vision(vis_settings="Hermann"):
+def position_vision(vis_settings="James"):
     """ Returns a variation of the basic rnn_position_vision with the
     LSTM layer replaced by a deep lay of the same shape
     """
@@ -100,7 +102,7 @@ def position_vision(vis_settings="Hermann"):
     return Model(inputs=[pos_model.input, vis_model.input], outputs=out)
 
 
-def rnn_position_vision_4(vis_settings="Hermann"):
+def rnn_position_vision_4(vis_settings="James"):
     """ Returns a variation of the basic rnn_position_vision but the
     vision branch can take in 4 images
     """
@@ -117,7 +119,7 @@ def rnn_position_vision_4(vis_settings="Hermann"):
     return Model(inputs=[pos_model.input, vis_model.input], outputs=out)
 
 
-def position_vision_4(vis_settings="Hermann"):
+def position_vision_4(vis_settings="James"):
     """ Returns a variation of the basic rnn_position_vision but the
     vision branch can take in 4 images
     """
