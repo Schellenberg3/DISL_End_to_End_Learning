@@ -1,62 +1,46 @@
+from tensorflow.keras.models import load_model
 from rlbench.environment import Environment
 from rlbench.action_modes import ArmActionMode, ActionMode
 from rlbench.observation_config import ObservationConfig
-from rlbench.tasks import ReachTarget
-from rlbench.tasks import DislPickUpBlueCup
-from rlbench.tasks import PickUpCup
-from rlbench.tasks import ReachTarget
 from rlbench import DomainRandomizationEnvironment
 from rlbench import RandomizeEvery
 from rlbench import VisualRandomizationConfig
-import os
-import tensorflow as tf
-from tensorflow.keras.models import Model
+from utils.utils import scale_pose
+from config import EndToEndConfig
 import numpy as np
 
 
 if __name__ == '__main__':
-    """------ USER VARIABLES -----"""
-    model_dir = f'trained_networks/imitation'
+    print('[Info] Starting demonstrate.py')
 
-    env_type = 'regular'  # regular or random
+    config = EndToEndConfig()
 
-    imitation_task = DislPickUpBlueCup
+    network_dir, network_name = config.get_trained_network()
+    network = load_model(network_dir)
+    print(f'\n[Info] Finished loading the network, {network_name}.')
 
-    num_demonstrations = 10
-    demonstration_episode_length = 30  # max steps per episode
+    parsed_network_name = network_name.split('_')
 
-    # todo: handle using ur5 and non-panda robots
-    robot = 'panda'  # Only a naive change.  Will cause errors if set to
+    if 'pv4' in parsed_network_name or 'rnn-pv4' in parsed_network_name:
+        print(f'\n[Info] Detected that the network uses 4 images. '
+              f'Will structure inputs accordingly')
+        four_deep = True
+    else:
+        four_deep = False
 
-    # todo: handle v4 syler observations (list? where regular only pull the first? Pop/push and v4 starts populated with 4?)
+    pov = config.get_pov_from_name(parsed_network_name)
 
-    """------ SET UP -----"""
+    task_name, imitation_task = config.get_task_from_name(parsed_network_name)
 
-    try:
-        print(f'[Info] Searching for models...\n\nModel #  :  MODEL_DIRECTORY')
-        for i, model_name in enumerate(os.listdir(model_dir)):
-            print(f'Model {i}  :  {model_name}')
-
-        selected_num = int(input(f'\nPlease select the Model # to demonstrate (e.g. enter 1, 2, or 3): '))
-        selected_model = os.listdir(model_dir)[selected_num]
-        model = tf.keras.models.load_model(model_dir + '/' + selected_model)
-
-        print(f'[Info] Successfully loaded Model {selected_num}  :   {selected_model}')
-    except (FileNotFoundError, TypeError, ValueError, IndexError) as e:
-        model = None
-        print(f'[ERROR] Exception "{e}" was raised. Exiting program. '
-              f'Could not find models in {model_dir} or invalid model requested.')
-        exit()
+    num_demonstrations = int(input('\nEnter how many demonstrations to perform: '))
+    demonstration_episode_length = 40  # max steps per episode
 
     action_mode = ActionMode(ArmActionMode.ABS_JOINT_POSITION)
-
     obs_config = ObservationConfig()
-    obs_config.set_all(True)
 
+    env_type = 'regular'
     if env_type == 'random':
-        # todo update where this directory points
-        rand_config = VisualRandomizationConfig(image_directory='../tests/unit/assets/textures')
-        # todo: does domain randomization environment ONLY use panda?
+        rand_config = VisualRandomizationConfig(image_directory=config.domain_rand_textures)
         env = DomainRandomizationEnvironment(action_mode,
                                              obs_config=obs_config,
                                              headless=False,
@@ -67,13 +51,18 @@ if __name__ == '__main__':
         env = Environment(action_mode=action_mode,
                           obs_config=obs_config,
                           headless=False,
-                          robot_configuration=robot)
+                          robot_configuration='panda')
 
     env.launch()
-
     task = env.get_task(imitation_task)
 
     evaluation_steps = num_demonstrations * demonstration_episode_length
+
+    blank_image = np.zeros((128, 128, 4))
+    image_t0 = blank_image.copy()
+    image_t1 = blank_image.copy()
+    image_t2 = blank_image.copy()
+    image_t3 = blank_image.copy()
 
     obs = None
     for i in range(evaluation_steps):
@@ -82,10 +71,35 @@ if __name__ == '__main__':
             print(f"[Info] Task reset: on episode {int(1+(i/demonstration_episode_length))} "
                   f"of {int(evaluation_steps / demonstration_episode_length)}")
 
-        image = np.expand_dims(np.dstack((obs.front_rgb, obs.front_depth)), 0)
+        if pov == "wrist":
+            image = np.dstack((obs.wrist_rgb, obs.wrist_depth))
+        elif pov == "front":
+            image = np.dstack((obs.wrist_rgb, obs.wrist_depth))
+        else:
+            image = np.dstack((obs.wrist_rgb, obs.wrist_depth))
+
+        if not four_deep:
+            pass
+        else:
+            image_t3 = image_t2.copy()
+            image_t2 = image_t1.copy()
+            image_t1 = image_t0.copy()
+            image_t0 = image.copy()
+            image = np.dstack((image_t0,
+                               image_t1,
+                               image_t2,
+                               image_t3,))
+
+        image = np.expand_dims(image, 0)
         state = np.expand_dims(np.append(obs.joint_positions, obs.gripper_open), 0)
-        action = model.predict(x=[state, image])
-        obs, reward, terminate = task.step(action.flatten())
+
+        pred = network.predict(x=[state, image]).flatten()
+
+        joint_pose = scale_pose(pred[:-1])
+        gripper = pred[-1]
+        action = np.append(joint_pose, gripper)
+
+        obs, reward, terminate = task.step(action)
 
     env.shutdown()
     print(f'[Info] Successfully exiting program.')

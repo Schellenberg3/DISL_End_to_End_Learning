@@ -19,83 +19,96 @@ if __name__ == "__main__":
     obs_config = ObservationConfig()
 
     config = EndToEndConfig()
-    eval_dir, eval_amount = config.get_evaluate_directory()
 
     network_dir, network_name = config.get_trained_network()
     network = load_model(network_dir)
+    print(f'\n[Info] Finished loading the network, {network_name}.')
 
-    if 'pv4' in network_name.split('_') or 'rnn-pv4' in network_name.split('_'):
+    parsed_network_name = network_name.split('_')
+    if 'pv4' in parsed_network_name or 'rnn-pv4' in parsed_network_name:
+        print(f'\n[Info] Detected that the network uses 4 images. '
+              f'Will structure inputs accordingly')
         split = split_data_4
     else:
         split = split_data
 
-    print(f'\n[Info] Finished loading the network, {network_name}.')
+    pov = config.get_pov_from_name(parsed_network_name)
+
+    eval_dir, eval_amount, eval_available = config.get_evaluate_directory()
 
     if not check_yes('\nAre you ready to begin? (y/n) '):
         exit(f'\n[Warn] Answer not recognized. Exiting program without creating a new model.')
 
-    eval_order = get_order(eval_amount)
+    eval_order = get_order(eval_amount, eval_available)
 
-    with open(join(network_dir, 'train_performance.plk'), 'rb') as fp:
-        history = pickle.load(fp)
+    try:
+        with open(join(network_dir, 'train_performance.plk'), 'rb') as fp:
+            history = pickle.load(fp)
 
-    print(f'\n[Info] Finished loading the network training history. Displaying graph now.')
-    steps = []
-    mse = []
-    for i in history:
-        steps.append(history[i]['steps'])
-        mse.append(history[i]['mse'])
+        print(f'\n[Info] Finished loading the network training history. Displaying graph now.')
+        steps = []
+        mse = []
+        for h in history:
+            steps.append(h['steps'])
+            mse.append(h['mse'][0])
 
-    plt.plot(steps, mse)
-    plt.xlabel('Steps')
-    plt.ylabel('MSE')
-    plt.title('Training MSE')
-    plt.grid(True)
-    plt.show()
-    plt.savefig(join(network_dir, 'training_mse.png'))
+        # todo resolve display issue
+        # plt.plot(steps, mse)
+        # plt.xlabel('Steps')
+        # plt.ylabel('MSE')
+        # plt.title('Training MSE')
+        # plt.grid(True)
+        # plt.show()
+        # plt.savefig(join(network_dir, 'training_mse.png'))
+    except FileNotFoundError:
+        print(f'[Warn] No pickle was found in the {network_name} directory. Skipping graph.')
 
     print(f'\n[info] Beginning to evaluate the model on {eval_amount} episodes')
 
-    max_acc = -1
-    max_acc_ep = -1
-    min_acc = float('inf')
-    min_acc_ep = -1
-    avg_acc = 0
-    tot_acc = 0
+    max_mse = -1
+    max_mse_ep = -1
+    min_mse = float('inf')
+    min_mse_ep = -1
+    avg_mse = 0
+    tot_mse = 0
 
     for episode in eval_order:
         test_pose, test_view, test_label = split(format_data(load_data(eval_dir,
                                                                        episode,
-                                                                       obs_config)))
+                                                                       obs_config)),
+                                                 pov)
 
-        loss, acc, mse = network.evaluate(x=[np.asarray(test_pose), np.asarray(test_view)],
+        loss, acc, mse = network.evaluate(x=[np.asarray(test_pose),
+                                             np.asarray(test_view)],
                                           y=np.asarray(test_label),
                                           verbose=1,
                                           batch_size=len(test_pose))
 
-        avg_acc += acc
+        avg_mse += acc
 
-        if acc > max_acc:
-            max_acc = acc
-            max_acc_ep = episode
-        elif acc < min_acc:
-            min_acc = acc
-            min_acc_ep = episode
+        if mse > max_mse:
+            max_mse = mse
+            max_mse_ep = episode
+        elif mse < min_mse:
+            min_mse = mse
+            min_mse_ep = episode
 
     try:
-        avg_acc = avg_acc / len(eval_order)
+        avg_acc = avg_mse / len(eval_order)
     except ZeroDivisionError:
         avg_acc = 'NO EVALUATION'
 
     evaluation_summary = f'Evaluated at {datetime.datetime.now()} \n' \
-                         f'Found an average accuracy of {avg_acc}% with a max of {max_acc} ' \
-                         f'at episode {max_acc_ep} and a min of {min_acc} at episode {min_acc_ep}.' \
+                         f'Tested on {eval_dir} \n' \
+                         f'The {len(eval_order)} episodes were numbers {eval_order} \n' \
+                         f'Found an average accuracy of {avg_acc}% with a max of {max_mse} ' \
+                         f'at episode {max_mse_ep} and a min of {min_mse} at episode {min_mse_ep}.' \
                          f'\n{eval_amount} episodes were used for testing.'
 
     print('\nEvaluation Summary:')
     print(evaluation_summary)
 
-    with open(join(network_dir, 'model_summary.txt'), "w") as f:
+    with open(join(network_dir, 'model_summary.txt'), "a") as f:
         f.write(f'\n\n-------------------------------------------------------\n\n'
                 f'{evaluation_summary}')
 
