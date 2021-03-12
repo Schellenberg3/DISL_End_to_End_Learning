@@ -4,11 +4,11 @@ from rlbench.observation_config import ObservationConfig
 from rlbench import DomainRandomizationEnvironment
 from rlbench import RandomizeEvery
 from rlbench import VisualRandomizationConfig
-from rlbench.tasks import ReachTarget
-from rlbench.tasks import DislPickUpBlueCup
-from rlbench.tasks import PickUpCup
-from utils import save_demos
+from config import EndToEndConfig
+from utils.utils import save_episodes
+from utils.utils import check_yes
 from multiprocessing import Process
+from os.path import join
 from os import listdir
 import os
 import time
@@ -63,7 +63,7 @@ def multiprocess_demos(mp_action_mode,
 
         try:
             mp_demos = mp_task.get_demos(mp_demos_per_loop, live_demos=True)
-            save_demos(mp_demos, mp_root_save_path, mp_begin_save_at)
+            save_episodes(mp_demos, mp_root_save_path, mp_begin_save_at)
 
             if mp_prior_error:
                 mp_prior_error = False
@@ -86,51 +86,58 @@ def multiprocess_demos(mp_action_mode,
 
 
 if __name__ == '__main__':
-    """------ USER VARIABLES -----"""
-    # Todo: use the EndToEnd config class to make this more general
+    print('[Info] Starting config.py')
 
-    # todo: make this code more general for variations of tasks
-    # Specify requested task
-    requested_task = ReachTarget  # DislPickUpBlueCup  # PickUpCup
+    config = EndToEndConfig()
 
-    # should the domain be randomized?
-    domain_rand = False
-    dr_images = '/assets/textures'  # relative path from this file's directory
+    task_name, requested_task = config.get_task_from_user()
 
-    # Select where the demos are saved here
-    root_save_path = 'data/training/ReachTarget'
+    # Define the total number of demos you'd like in the folder
+    num_total_demos = int(input('\nHow many episodes should be generated? '))
+
+    tag = input('\nWhat tag should the directory have? Testing (default), training, misc:  ').lower()
+    if tag not in ['testing','training','misc']:
+        tag = 'testing'
+
+    if check_yes('\nWill the scene be randomized? (y/n) '):
+        domain_rand = True
+        tag += '_randomized'
+    else:
+        domain_rand = False
+
+    dr_images = config.domain_rand_textures
+
+    root_save_path = join(config.data_root,
+                          tag,
+                          task_name)
+    full_save_path = join(root_save_path,
+                          'variation0',
+                          'episodes')
     #    Note: from the root demos are saved .../variation#/episodes/episode#
     #    the count for variations and the episodes within a variation start at 0
     #    It is important that the dataset's collection of episodes be continuous
     #    be careful of this when generating new demonstration episodes.
     #
     #    If demos already exist in the folder, the program will try to add more to
-    #    it until there are at least the desired number.
+    #    it until there are at least the desired number. It will match the existing
+    #    numbering too.  check_episodes.py exists to resolve any errors if this fails.
 
-    # Define the total number of demos you'd like in the folder
-    num_total_demos = 4000
-
-    # Define how many demos to get in each loop.  Demos are saved after each loop.
     num_demo_per_loop = 1
 
-    # Set to true to save resources by not displaying CoppeliaSim
-    headless = True
-
-    """----- SET UP -----"""
+    headless = True  # To save resources by not displaying CoppeliaSim
     live_demos = True
-    obs_config = ObservationConfig() # todo: Adjust this for UR5 (verify that set_all(true) isnt needed)
+
+    obs_config = ObservationConfig()
     action_mode = ActionMode(ArmActionMode.ABS_JOINT_POSITION)
 
     processes = []
     mp_start_time = time.perf_counter()
 
-    full_save_path = root_save_path + '/variation0/episodes'
-
     try:
         num_existing_demos = len(listdir(full_save_path))
     except FileNotFoundError:
         print(f'[Warn] It looks like {root_save_path} might not exist or is not set up properly. '
-              f'When creating demos the directory {full_save_path} will be created.')
+              f'Before generating episodes the directory {full_save_path} will be created.')
         num_existing_demos = 0
 
     required_new_demos = num_total_demos - num_existing_demos
@@ -195,7 +202,6 @@ if __name__ == '__main__':
 
     print(f'[Info] All {len(processes)} processes started. Generating demonstrations...')
 
-    # todo: add exit cond
     [process.join() for process in processes]
 
     mp_end_time = time.perf_counter()
