@@ -1,18 +1,16 @@
 from rlbench.observation_config import ObservationConfig
-from utils import get_order
-from utils import load_data
-from utils import format_data
-from utils import split_data
 from contextlib import redirect_stdout
-from utils import EndToEndConfig
-from utils import check_yes
-from utils import format_time
+from utils.utils import get_order
+from utils.utils import load_data
+from utils.utils import format_data
+from utils.utils import check_yes
+from utils.utils import format_time
 from os.path import join
+from config import EndToEndConfig
 from psutil import virtual_memory
 import numpy as np
 import tensorflow as tf
 import gc
-import pickle
 import datetime
 import os
 import time
@@ -20,24 +18,27 @@ import time
 if __name__ == "__main__":
     print('[Info] Starting imitation_learner.py')
 
-    """------ USER VARIABLES -----"""
-
     config = EndToEndConfig()
-    train_dir, test_dir = config.set_directories()
-    (train_amount, test_amount), epochs = config.get_episode_amounts(train_dir, test_dir)
+
+    train_dir, test_dir = config.get_test_train_directories()
+    episode_info = config.get_episode_amounts(train_dir, test_dir)
+
+    train_amount, train_available, test_amount, test_available, epochs = episode_info
+
+    task_name, _ = config.get_task_from_name(train_dir.split('/'))
+    print()  # to maintain spacing
+
+    pov = config.get_pov_from_user()
+
     network_name, network, split = config.get_new_network()
 
-    # How many episodes should the network see before back propagation
-    episodes_per_update = 3
+    # append more information to get the final network name
+    network_name = f'{network_name}_{task_name}_{pov}_{train_amount}_by{epochs}'
 
     # Settings for network compilation. Generally do not need to adjust these.
     use_optimizer = "adam"
     use_loss = "mean_squared_error"
-    use_metrics = ["accuracy", "mse"]
-
-    """----- SET UP -----"""
-
-    obs_config = ObservationConfig()
+    use_metrics = ["mse"]
 
     network.compile(optimizer=use_optimizer,
                     loss=use_loss,
@@ -47,7 +48,7 @@ if __name__ == "__main__":
 
     network_save_dir = join(config.network_root,
                             'imitation',
-                            f'{network_name}_{train_amount}_by_{epochs}')
+                            f'{network_name}')
 
     print(f'\n[Info] The network will be saved in {network_save_dir}')
     try:
@@ -59,22 +60,20 @@ if __name__ == "__main__":
         pass
 
     print(f'\n[Info] Pre-training summary: ')
-    print(f'[Info] Will train with {train_amount} episodes over {epochs} '
-          f'epochs with {test_amount} testing episodes.')
-    print(f'[Info] Training episodes will be pulled from: {train_dir}')
-    print(f'[Info] Testing episodes will be pulled from: {test_dir}')
-    print(f'[Info] The network will be saved at: {network_save_dir}')
+    print(f'Will train with {train_amount} episodes over {epochs} '
+          f'epochs with {test_amount} testing episodes. \n'
+          f'Training episodes will be pulled from: {train_dir}\n'
+          f'Testing episodes will be pulled from: {test_dir}\n'
+          f'The network will be saved at: {network_save_dir}')
 
     if not check_yes('\nAre you ready to begin? (y/n) '):
         exit(f'\n[Warn] Answer not recognized. Exiting program without creating a new model.')
-    print('')
+    print('')  # to maintain spacing
 
-    train_order = get_order(train_amount, epochs)
+    train_order = get_order(train_amount, train_available, epochs)
 
     start_train = time.perf_counter()
 
-    # todo refactor names
-    # Todo solve memory creep
     step = 0
     total_steps = len(train_order) - 1
     display_every = int(np.ceil(len(train_order)/100))
@@ -82,6 +81,11 @@ if __name__ == "__main__":
     train_performance = []
     time_steps = []
     i = 0
+
+    # How many episodes should the network see before back propagation
+    episodes_per_update = 3
+
+    obs_config = ObservationConfig()
 
     while step <= total_steps:
         train_pose = []
@@ -91,12 +95,12 @@ if __name__ == "__main__":
             try:
                 pose, view, label = split(format_data(load_data(train_dir,
                                                                 train_order[step],
-                                                                obs_config)))
+                                                                obs_config)),
+                                          pov=pov)
                 train_pose += pose
                 train_view += view
                 train_label += label
                 i += len(train_pose)
-                # print(f'Loaded ep {train_order[step]} at step {step} of {total_steps}')
                 step += 1
             except (FileNotFoundError, IndexError) as E:
                 print(f'[Warn] Reached end of dataset. Using {episode} '
@@ -131,7 +135,9 @@ if __name__ == "__main__":
 
     end_train = time.perf_counter()
 
-    print(f'[Info] Finished training model. Training took {format_time(end_train - start_train)} seconds.')
+    training_time = format_time(end_train - start_train)
+
+    print(f'[Info] Finished training model. Training took {training_time}.')
 
     network.save(network_save_dir)
 
@@ -141,48 +147,63 @@ if __name__ == "__main__":
         with redirect_stdout(f):
             network.summary()
 
-    with open(f'{network_save_dir}/train_performance.plk', 'wb') as file:
-        pickle.dump(train_performance, file, protocol=pickle.HIGHEST_PROTOCOL)
+    steps = []
+    mse = []
+    for perf in train_performance:
+        steps.append(perf['steps'])
+        mse.append(perf['mse'][0])
+
+    train_performance_csv = np.vstack((np.asarray(steps), np.asarray(mse))).transpose()
+
+    np.savetxt(join(network_save_dir, 'train_performance.csv'),
+               train_performance_csv,
+               delimiter=",",
+               header='steps, mse')
 
     print(f'\n[info] Beginning to evaluate the model on {test_amount} test demonstration episodes')
 
-    max_acc = -1
-    max_acc_ep = -1
-    min_acc = float('inf')
-    min_acc_ep = -1
-    avg_acc = 0
+    test_order = get_order(test_amount, test_available)
 
-    test_order = get_order(test_amount)
-    tot_acc = 0
+    max_mse = -1
+    max_mse_ep = -1
+    min_mse = float('inf')
+    min_mse_ep = -1
+    avg_mse = 0
+    tot_mse = 0
 
     for episode in test_order:
-        test_pose, test_view, test_label = split_data(format_data(load_data(test_dir,
-                                                                            episode,
-                                                                            obs_config)))
+        test_pose, test_view, test_label = split(format_data(load_data(test_dir,
+                                                                       episode,
+                                                                       obs_config)),
+                                                 pov)
 
-        loss, acc, mse = network.evaluate(x=[np.asarray(test_pose), np.asarray(test_view)],
-                                          y=np.asarray(test_label),
-                                          verbose=1,
-                                          batch_size=len(test_pose))
+        loss, mse = network.evaluate(x=[np.asarray(test_pose),
+                                        np.asarray(test_view)],
+                                     y=np.asarray(test_label),
+                                     verbose=1,
+                                     batch_size=len(test_pose))
 
-        avg_acc += acc
+        avg_mse += mse
 
-        if acc > max_acc:
-            max_acc = acc
-            max_acc_ep = episode
-        elif acc < min_acc:
-            min_acc = acc
-            min_acc_ep = episode
+        if mse > max_mse:
+            max_mse = mse
+            max_mse_ep = episode
+        elif mse < min_mse:
+            min_mse = mse
+            min_mse_ep = episode
 
     try:
-        avg_acc = avg_acc / len(test_order)
+        avg_acc = avg_mse / len(test_order)
     except ZeroDivisionError:
         avg_acc = 'NO EVALUATION'
 
-    evaluation_summary = f'Evaluated at {datetime.datetime.now()} \n' \
-                         f'Found an average accuracy of {avg_acc}% with a max of {max_acc} ' \
-                         f'at episode {max_acc_ep} and a min of {min_acc} at episode {min_acc_ep}.' \
-                         f'\n{test_amount} episodes were used for testing.'
+    evaluation_summary = f'Network created and evaluated at {datetime.datetime.now()} \n' \
+                         f'Training directory was: {train_dir}\n' \
+                         f'Training took {training_time} \n' \
+                         f'Testing directory was: {test_dir} \n' \
+                         f'Number of testing episodes was {test_amount} \n' \
+                         f'Found an average mse of {avg_acc} with a max of {max_mse} ' \
+                         f'at episode {max_mse_ep} and a min of {min_mse} at episode {min_mse_ep}.'
 
     print('\nEvaluation Summary:')
     print(evaluation_summary)

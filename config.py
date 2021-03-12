@@ -123,6 +123,7 @@ class EndToEndConfig:
             print(f'\n[Info] Automatically selected "front" as the POV.')
             return 'front'
         else:
+            print(f'[Warn] Unable to infer networks point of view.')
             return self.get_pov_from_user()
 
     def get_pov_from_user(self) -> str:
@@ -131,11 +132,12 @@ class EndToEndConfig:
 
         :return: Either "wrist" or "front"
         """
-        print(f'[Warn] Unable to infer networks point of view (front or wrist camera).')
-        if check_yes('Default POV is front, is this correct? (y/n) '):
-            return 'front'
+        pov = input('Please enter what camera point of view to use, front (default) or wrist: ')
+        if pov in ['front', 'Front', 'wrist', 'Wrist']:
+            return pov.lower()
         else:
-            return 'wrist'
+            print(f'[Warn] Input "{pov}" is not an option, will use default point of view: front')
+            return 'front'
 
     def get_new_network(self):
         """ Lists network options from custom_networks and lets user choose pick a
@@ -271,7 +273,7 @@ class EndToEndConfig:
             test_num = int(input('Enter directory # for testing: '))
 
             if train_num == test_num:
-                exit('\n[ERROR] Cannot test and train on the same directory. Exiting program.')
+                print('\n[Warn] Testing and training on the same directory. This is not recommended.')
             elif train_num < 0 or test_num < 0:
                 exit('\n[ERROR] Selections must be greater than zero. Exiting program.')
 
@@ -339,7 +341,7 @@ class EndToEndConfig:
             print(f'[Info] Setting epochs to 1')
             epochs = 1
 
-        return amounts[0], available[0], amounts[1], available[0], epochs
+        return amounts[0], available[0], amounts[1], available[1], epochs
 
 
 if __name__ == '__main__':

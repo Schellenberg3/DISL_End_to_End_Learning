@@ -78,13 +78,13 @@ if __name__ == "__main__":
                                                                        obs_config)),
                                                  pov)
 
-        loss, acc, mse = network.evaluate(x=[np.asarray(test_pose),
-                                             np.asarray(test_view)],
-                                          y=np.asarray(test_label),
-                                          verbose=1,
-                                          batch_size=len(test_pose))
+        loss, mse = network.evaluate(x=[np.asarray(test_pose),
+                                        np.asarray(test_view)],
+                                     y=np.asarray(test_label),
+                                     verbose=1,
+                                     batch_size=len(test_pose))
 
-        avg_mse += acc
+        avg_mse += mse
 
         if mse > max_mse:
             max_mse = mse
@@ -101,7 +101,7 @@ if __name__ == "__main__":
     evaluation_summary = f'Evaluated at {datetime.datetime.now()} \n' \
                          f'Tested on {eval_dir} \n' \
                          f'The {len(eval_order)} episodes were numbers {eval_order} \n' \
-                         f'Found an average accuracy of {avg_acc}% with a max of {max_mse} ' \
+                         f'Found an average mse of {avg_acc} with a max of {max_mse} ' \
                          f'at episode {max_mse_ep} and a min of {min_mse} at episode {min_mse_ep}.' \
                          f'\n{eval_amount} episodes were used for testing.'
 
