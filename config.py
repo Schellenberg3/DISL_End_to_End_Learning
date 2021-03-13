@@ -15,8 +15,8 @@ from typing import Tuple
 from typing import List
 from typing import Any
 
-class EndToEndConfig:
 
+class EndToEndConfig:
     def __init__(self):
         """ Container for common variables and getter/setters used
         throughout the code.
@@ -48,14 +48,11 @@ class EndToEndConfig:
                                                           split_data_4),
                                 }
 
-        # todo: add selection of RLBench tasks
-        #    - May need to edit how the networks are named for this
-        #    - Should use a dict
-        #    - Generator should call this to ensure naming convention (and data_root)
-        self.default_task = ["ReachTarget", ReachTarget]
+        # task name : RLBench object
         self.tasks = {"ReachTarget": ReachTarget,
                       "DislPickUpBlueCup": DislPickUpBlueCup,
                       }
+        self.default_task = ["ReachTarget", ReachTarget]
 
     def get_task_from_name(self, parsed_name: List[str]):
         """ Uses the network name or directory name to select the
