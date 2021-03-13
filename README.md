@@ -106,7 +106,7 @@ Another stage of reinforcement learning is planed with  `reinforce.py` but this 
 
 Each of these programs is written as a command line tool so minimal edits to the code should be needed. Things like what task to use or what camera point of view to use are automatically selected.
 
-*This code was written for and has only been tested on tasks with one variation.* If you [add a new task](#How-to-Create-a-Custom-Task?) with variations then you may need to update the code.
+*This code was written for and has only been tested on tasks with one variation.* If you [add a new task](#How-to-Create-a-Custom-Task) with variations then you may need to update the code.
 
 
 
@@ -117,7 +117,7 @@ Running `python3 generate_episodes.py`  lets users create a data set of a single
 The program uses multithreading to generate episodes in parallel. Episodes saved in the following structure:
 
 ```shell
-data/tag/TaskName/variation0/episodes/episode#
+data/{tag}/{TaskName}/variation0/episodes/episode#
 ```
 
 Where **#** represents the episode number. Inside each episodes directory there is a folder with RGB, depth, and segmented images from the from the front, wrist, left and right cameras from each step in the episode.  Also included is `low_dim_obs.pkl` which stores information like joint positions and gripper state at each step.
@@ -147,7 +147,7 @@ Finally, the type of network is selected. There are four options for this:
 | RNN Position Vision   | NN with current position and RGBD image as input and a LSTM layer |
 | RNN Position Vision-4 | NN with current position and current + previous three RGBD images as input and a LSTM layer |
 
-A [custom NN structure](#how-to-create-a-custom-neural-network?) could easily be added.
+A [custom NN structure](#how-to-create-a-custom-neural-network) could easily be added.
 
 NNs are saved in the following structure:
 
