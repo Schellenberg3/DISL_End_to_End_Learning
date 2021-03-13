@@ -15,8 +15,8 @@ from typing import Tuple
 from typing import List
 from typing import Any
 
-class EndToEndConfig:
 
+class EndToEndConfig:
     def __init__(self):
         """ Container for common variables and getter/setters used
         throughout the code.
@@ -48,14 +48,11 @@ class EndToEndConfig:
                                                           split_data_4),
                                 }
 
-        # todo: add selection of RLBench tasks
-        #    - May need to edit how the networks are named for this
-        #    - Should use a dict
-        #    - Generator should call this to ensure naming convention (and data_root)
-        self.default_task = ["ReachTarget", ReachTarget]
+        # task name : RLBench object
         self.tasks = {"ReachTarget": ReachTarget,
                       "DislPickUpBlueCup": DislPickUpBlueCup,
                       }
+        self.default_task = ["ReachTarget", ReachTarget]
 
     def get_task_from_name(self, parsed_name: List[str]):
         """ Uses the network name or directory name to select the
@@ -301,11 +298,11 @@ class EndToEndConfig:
             if evaluation_num < 0:
                 exit('\n[ERROR] Selections must be greater than zero. Exiting program.')
 
-            eval_dir = join(self.data_root, self._possible_data_set[evaluation_num], 'variation0', 'episodes')
+            eval_dir = join(self.data_root, self.possible_data_set[evaluation_num], 'variation0', 'episodes')
 
             available = len(listdir(eval_dir))
             print(f'\nThere are {available} episodes available for evaluation at '
-                  f'{self._possible_data_set[evaluation_num]}')
+                  f'{self.possible_data_set[evaluation_num]}')
             eval_amount = int(input('Enter how many to use (or -1 for all): '))
             if eval_amount > available or eval_amount <= -1:
                 print(f'[Info] Using all {available} evaluation episodes.')
