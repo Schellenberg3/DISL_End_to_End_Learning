@@ -301,11 +301,11 @@ class EndToEndConfig:
             if evaluation_num < 0:
                 exit('\n[ERROR] Selections must be greater than zero. Exiting program.')
 
-            eval_dir = join(self.data_root, self._possible_data_set[evaluation_num], 'variation0', 'episodes')
+            eval_dir = join(self.data_root, self.possible_data_set[evaluation_num], 'variation0', 'episodes')
 
             available = len(listdir(eval_dir))
             print(f'\nThere are {available} episodes available for evaluation at '
-                  f'{self._possible_data_set[evaluation_num]}')
+                  f'{self.possible_data_set[evaluation_num]}')
             eval_amount = int(input('Enter how many to use (or -1 for all): '))
             if eval_amount > available or eval_amount <= -1:
                 print(f'[Info] Using all {available} evaluation episodes.')
