@@ -49,7 +49,8 @@ tar -xf CoppeliaSim_Edu_V4_1_0_Ubuntu18_04.tar.xc
  To verify that CoppeliaSim is working property you can run:
 
 ```shell
-./CoppeliaSim_Edu_V4_1_0_Ubuntu18_04/coppeliasim.sh
+cd CoppeliaSim_Edu_V4_1_0_Ubuntu18_04
+./coppeliaSim.sh
 ```
 
 **PyRep** is installed after CoppeliaSim. Your *~/bashrc* file needs to be updated first. Add the following **(Note the 'EDIT/ME' in the first line)**
@@ -77,6 +78,16 @@ cd RLBench
 pip3 install -r requirements.txt
 pip3 install .
 ```
+
+Or if you plan to edit RLBench (which you may for making new tasks) the following will make sure any changes are in place without having to intal each time:
+
+```
+pip3 install . -e
+```
+
+
+
+
 
 **TensorFlow** may be installed by:
 
@@ -171,7 +182,7 @@ Running `python3 evaluate.py` will prompt the user to select a trained network a
 
 #### Demonstrate
 
-Running `demostrate.py` will prompt the user to select a NN and how many demonstrations of the task they'd like to see.  CoppeliaSim will launch the task environment and the NN can interact with the scene.
+Running `python3 demostrate.py` will prompt the user to select a NN and how many demonstrations of the task they'd like to see.  CoppeliaSim will launch the task environment and the NN can interact with the scene.
 
 
 
