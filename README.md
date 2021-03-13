@@ -43,13 +43,13 @@ git clone https://github.com/stepjam/RLBench.git
 **CoppeliaSim** may be downloaded from the company's website [here](https://www.coppeliarobotics.com/downloads). The Edu version is used and is downloaded as a `.tar` file. To extract this to your home directory run:
 
  ```shell
-tar -xf CoppeliaSim_Edu_V4_1_0_Ubuntu18.04.tar.xc 
+tar -xf CoppeliaSim_Edu_V4_1_0_Ubuntu18_04.tar.xc 
  ```
 
  To verify that CoppeliaSim is working property you can run:
 
 ```shell
-./CoppeliaSim_Edu_V4_1_0_Ubuntu18.04/coppeliasim.sh
+./CoppeliaSim_Edu_V4_1_0_Ubuntu18_04/coppeliasim.sh
 ```
 
 **PyRep** is installed after CoppeliaSim. Your *~/bashrc* file needs to be updated first. Add the following **(Note the 'EDIT/ME' in the first line)**
