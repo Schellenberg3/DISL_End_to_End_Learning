@@ -33,8 +33,8 @@ if __name__ == '__main__':
         exit(f'[ERROR] The directory {broken_dataset_dir} was not found. Exiting program without '
              f'altering any files.')
 
-    print(f'\n[Info] Renaming {num_to_rename} episodes in a broken dataset at: {broken_dataset_dir}\n'
-          f'[Info] Note that the original order of the numbers is not necessarily preserved')
+    print(f'\n[Info] Renaming {num_to_rename} episodes in data set: {broken_dataset_dir}\n'
+          f'[Info] Note, each episode is renumbered even if the data set is already continuous.')
 
     ans = input(f'\n[Info] Please verify that this is correct. Are you ready for the renaming to begin? (y/n): ')
     if ans not in ['y', 'yes', 'Y', 'Yes']:
@@ -57,7 +57,8 @@ if __name__ == '__main__':
     avg = np.mean(count)
     std = np.std(count)
     factor = 2
-    possible_errors = []
+    fewer_errors = []
+    more_errors = []
     min_size = [float('inf'), '']
     max_size = [-1, '']
 
@@ -75,19 +76,29 @@ if __name__ == '__main__':
             max_size[1] = new_name
 
         if size < (avg - factor*std):
-            possible_errors.append(new_name)
+            fewer_errors.append(new_name)
+        elif size > (avg + factor*std):
+            more_errors.append(new_name)
 
     end_rename = time.perf_counter()
 
-    if len(possible_errors) != 0:
+    s = 's'
+
+    if len(fewer_errors) != 0:
         print(f'\n[WARN] The following files seem to have fewer time steps in then than most. '
               f'All have at least {int(factor*std)} or fewer steps than the dataset average ({avg:.3f}). '
               f'It would be wise to manually check these')
-        [print(possible_error) for possible_error in possible_errors]
+        [print(possible_error.split('/')[-1]) for possible_error in fewer_errors]
+
+    if len(more_errors) != 0:
+        print(f'\n[WARN] The following files seem to have more time steps in then than most. '
+              f'All have at least {int(factor*std)} or more steps than the dataset average ({avg:.3f}). '
+              f'It would be wise to manually check these')
+        [print(possible_error.split('/')[-1]) for possible_error in more_errors]
 
     print(f'\n[Info] The average number of steps per episode was {avg:.3f} with standard deviation of {std:.3f}.')
-    print(f'[Info] Max number of steps: {max_size[0]} at {max_size[1]}')
-    print(f'[Info] Min number of steps: {min_size[0]} at {min_size[1]}')
+    print(f'[Info] Max number of steps: {max_size[0]} at {max_size[1].split("/")[-1]}')
+    print(f'[Info] Min number of steps: {min_size[0]} at {min_size[1].split("/")[-1]}')
 
     print(f'\n[Info] Successfully renamed {num_to_rename} files at: {broken_dataset_dir}. '
           f'Process took {end_rename - start_rename:.3f} seconds. Exiting program.')
