@@ -86,7 +86,7 @@ def multiprocess_demos(mp_action_mode,
 
 
 if __name__ == '__main__':
-    print('[Info] Starting config.py')
+    print('[Info] Starting generate_episodes.py')
 
     config = EndToEndConfig()
 
@@ -153,7 +153,7 @@ if __name__ == '__main__':
             print(f'[ERROR] No dataset exists at {full_save_path} or the one that does is broken.')
             exit()
 
-        print(f'[Info] A total of {len(listdir(full_save_path))} '
+        print(f'\n[Info] A total of {len(listdir(full_save_path))} '
               f'demonstration episodes have been collected with {total_num_steps} total data points.'
               f'\n[Info] All demonstration episodes are located in: {full_save_path}'
               f'\n[Info] Exiting program successfully.')
@@ -166,7 +166,7 @@ if __name__ == '__main__':
           f'found {num_existing_demos} at the desired location. '
           f'\n[Info] Will generate {required_new_demos} new demonstration episodes at {full_save_path}')
 
-    ans = input(f'\n[Info] Are you ready for the task collection to begin? (y/n): ')
+    ans = input(f'\n[Info] Are you ready for the episode generation to begin? (y/n): ')
     if ans not in ['y', 'yes', 'Y', 'Yes']:
         exit(f'[Warn] Answer: {ans} not recognized. Exiting program without generating demonstrations.')
 
