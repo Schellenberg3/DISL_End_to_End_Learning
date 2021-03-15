@@ -20,7 +20,7 @@ if __name__ == "__main__":
 
     config = EndToEndConfig()
 
-    train_dir, test_dir = config.get_test_train_directories()
+    train_dir, test_dir = config.get_train_test_directories()
     episode_info = config.get_episode_amounts(train_dir, test_dir)
 
     train_amount, train_available, test_amount, test_available, epochs = episode_info

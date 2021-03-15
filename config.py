@@ -254,7 +254,7 @@ class EndToEndConfig:
             except NotADirectoryError:
                 pass
 
-    def get_test_train_directories(self) -> Tuple[str, str]:
+    def get_train_test_directories(self) -> Tuple[str, str]:
         """ Prints a numbered list of all data sets in the data
         directory with the number of episodes they contain. Users
         select what directories to use and a path to the selections
@@ -360,7 +360,7 @@ if __name__ == '__main__':
     print('\n-------------------------------------------------------\n')
 
     print(f'[Info] Here is how testing and training datasets are selected: ')
-    tr, te = e.get_test_train_directories()
+    tr, te = e.get_train_test_directories()
     ntr, atr, nte, ate, epc = e.get_episode_amounts(tr, te)
 
     print(f'\n[Info] Training selection: {tr}')
