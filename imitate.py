@@ -186,7 +186,6 @@ if __name__ == "__main__":
                   f'Trained through episode {step - train_amount * int((step - 1) / train_amount)} of '
                   f'{train_amount} in epoch {int((step - 1) / train_amount) + 1 + prev_epoch} of'
                   f' {epochs + prev_epoch}.\n')
-            break
 
     end_train = time.perf_counter()
 
