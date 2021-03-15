@@ -10,6 +10,7 @@ from utils.utils import check_yes
 from os.path import dirname
 from os.path import realpath
 from os.path import join
+from os.path import isdir
 from os import listdir
 from typing import Tuple
 from typing import List
@@ -228,6 +229,82 @@ class EndToEndConfig:
         except (ValueError, IndexError) as e:
             print(self._possible_network)
             exit('\n[ERROR] Selections must be integers and valid list indices. Exiting program')
+
+    def get_info_from_network_name(self, parsed_name: List[str]):
+        """ For retraining a network, this takes the name of a trained network and
+        returns the point of view ('front' or 'wrist'), what function to use to split
+        data, the task's training directory (testing directory is returned for consistency
+        but this should not be used in retraining), the RLBench class for the task, the
+        the amount of training episodes to uses (which is equal to the number available in the
+        training directory), the amount of training episodes available, the amount of testing episodes
+        to use (included for consistency but set to 0), the amount of testing episodes available
+        (included for consistency but set to 0), and the number of epochs previously trained over.
+
+        :param parsed_name: Network name split
+        :return: (Point of View, split function, task's name, RLBench task class,
+        training directory, testing directory, train amount, train available,
+        test amount, test available, previous epochs)
+        """
+
+        pov = self.get_pov_from_name(parsed_name)
+
+        task_name, task = self.get_task_from_name(parsed_name)
+
+        if 'rnn-pv4' in parsed_name or 'pv4' in parsed_name:
+            split = split_data_4
+            print(f'\n[Info] Detected that the network uses 4 images, will format images accordingly')
+        else:
+            split = split_data
+
+        epoch_info = [i for i in parsed_name if 'by' in i]
+        if len(epoch_info) != 1:
+            prev_epoch = int(input('\n[Warn] Could not infer the prior number of epochs.\n'
+                                   'Please enter the number of epochs previously trained over: '))
+        else:
+            prev_epoch = int(epoch_info[0][2:])
+            print(f'\n[Info] Detected that the network was trained over {prev_epoch} epochs')
+
+        tag = 'training'
+        tag += '_randomized' if 'rand' in parsed_name else ''
+
+        train_dir = join(self.data_root,
+                         tag,
+                         task_name,
+                         'variation0',
+                         'episodes')
+
+        if isdir(train_dir):
+            train_available = len(listdir(train_dir))
+            print(f'\n[Info] Automatically selected dataset: {join(tag, task_name)} \n'
+                  f'[Info] Retraining will use all {train_available} episodes.')
+
+            train_amount = train_available
+
+            print('\n[Info] No testing will be performed. Use evaluate.py instead.')
+
+            test_dir = train_dir
+            test_amount = 0
+            test_available = 0
+        else:
+            print(f'\n[Info] Failed to detect the correct training directory. Note that retraining '
+                  f'uses all available episodes and does not do a final evaluation.\n '
+                  f' Please select a directory: ')
+            train_dir, _ = self.get_train_test_directories()
+
+            train_available = len(listdir(train_dir))
+            print(f'\n[Info] Retraining will use all {train_available} episodes.')
+
+            train_amount = train_available
+
+            print('\n[Info] No testing will be performed. Use evaluate.py instead.')
+
+            test_dir = train_dir
+            test_amount = 0
+            test_available = 0
+
+        return pov, split, task_name, task, train_dir, test_dir,\
+            train_amount, train_available, \
+            test_amount, test_available, prev_epoch
 
     def list_data_set_directories(self) -> None:
         """ Prints a numbered list of all data sets in the data

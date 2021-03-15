@@ -1,59 +1,36 @@
+# This file will load an existing network, detect its POV, it's Task, and select the dataset
+
+
+from os.path import isdir
+from os import listdir
 from rlbench.observation_config import ObservationConfig
-from tensorflow.keras.models import load_model
 from utils.utils import get_order
 from utils.utils import load_data
 from utils.utils import format_data
 from utils.utils import check_yes
 from utils.utils import format_time
+from utils.utils import split_data
+from utils.utils import split_data_4
+from tensorflow.keras.models import load_model
 from os.path import join
-from os import listdir
 from config import EndToEndConfig
 from psutil import virtual_memory
 import numpy as np
 import tensorflow as tf
 import gc
-import datetime
 import time
 
-if __name__ == "__main__":
-    print('[Info] Starting imitation_learner.py')
+if __name__ == '__main__':
+    print('[info] Starting retrain.py')
 
     config = EndToEndConfig()
 
-    if not check_yes('\nContinue training an existing model (y) or train a new model (n): '):
-        print(f'\n[Info] Training a new model')
+    if check_yes('\nContinue training an existing model (y) or train a new model (n): '):
 
-        train_dir, test_dir = config.get_train_test_directories()
-        episode_info = config.get_episode_amounts(train_dir, test_dir)
-
-        train_amount, train_available, test_amount, test_available, epochs = episode_info
-
-        task_name, _ = config.get_task_from_name(train_dir.split('/'))
-        print()  # to maintain spacing
-
-        pov = config.get_pov_from_user()
-
-        network_name, network, split = config.get_new_network()
-
-        # append more information to get the final network name
-        network_name = f'{network_name}_{task_name}_{pov}_{train_amount}_by{epochs}'
-
-        # Settings for network compilation. Generally do not need to adjust these.
-        use_optimizer = "adam"
-        use_loss = "mean_squared_error"
-        use_metrics = ["mse"]
-
-        network.compile(optimizer=use_optimizer,
-                        loss=use_loss,
-                        metrics=use_metrics)
-
-        prev_train_performance = None
-        prev_epoch = 0
-        pre_max_step = 0
-    else:
-        print(f'\n[Info] Continuing the training of an existing model')
+        retrain = True
 
         network_name, network_dir = config.get_trained_network()
+
         parsed_name = network_name.split('_')
 
         network_info = config.get_info_from_network_name(parsed_name)
@@ -98,7 +75,12 @@ if __name__ == "__main__":
 
         pre_max_step = prev_train_performance[-1, 0]
 
-    print(f'\n[Info] Finished compiling the network.')
+    else:
+        prev_train_performance = None
+        prev_epoch = 0
+        pre_max_step = 0
+        exit('Would create a new network')
+
 
     network_save_dir = join(config.network_root,
                             'imitation',
@@ -108,7 +90,7 @@ if __name__ == "__main__":
     try:
         listdir(network_save_dir)
         print(f'\n[WARN] There is already a network at {network_save_dir} training will override this.')
-        if not check_yes('Are you sure you would like to override this? (y/n) '):
+        if not check_yes('Are you sure you would like to do override this? (y/n) '):
             exit(f'\n[Warn] Answer not recognized. Exiting program without overriding the exiting model.')
     except FileNotFoundError:
         pass
@@ -186,7 +168,6 @@ if __name__ == "__main__":
                   f'Trained through episode {step - train_amount * int((step - 1) / train_amount)} of '
                   f'{train_amount} in epoch {int((step - 1) / train_amount) + 1 + prev_epoch} of'
                   f' {epochs + prev_epoch}.\n')
-            break
 
     end_train = time.perf_counter()
 
@@ -212,56 +193,4 @@ if __name__ == "__main__":
                delimiter=",",
                header='steps, mse')
 
-    print(f'\n[info] Beginning to evaluate the model on {test_amount} test demonstration episodes')
 
-    test_order = get_order(test_amount, test_available)
-
-    max_mse = -1
-    max_mse_ep = -1
-    min_mse = float('inf')
-    min_mse_ep = -1
-    avg_mse = 0
-    tot_mse = 0
-
-    for episode in test_order:
-        test_pose, test_view, test_label = split(format_data(load_data(test_dir,
-                                                                       episode,
-                                                                       obs_config)),
-                                                 pov)
-
-        loss, mse = network.evaluate(x=[np.asarray(test_pose),
-                                        np.asarray(test_view)],
-                                     y=np.asarray(test_label),
-                                     verbose=1,
-                                     batch_size=len(test_pose))
-
-        avg_mse += mse
-
-        if mse > max_mse:
-            max_mse = mse
-            max_mse_ep = episode
-        elif mse < min_mse:
-            min_mse = mse
-            min_mse_ep = episode
-
-    try:
-        avg_acc = avg_mse / len(test_order)
-    except ZeroDivisionError:
-        avg_acc = 'NO EVALUATION'
-
-    evaluation_summary = f'Network created and evaluated at {datetime.datetime.now()} \n' \
-                         f'Training directory was: {train_dir}\n' \
-                         f'Training took {training_time} \n' \
-                         f'Testing directory was: {test_dir} \n' \
-                         f'Number of testing episodes was {test_amount} \n' \
-                         f'Found an average mse of {avg_acc} with a max of {max_mse} ' \
-                         f'at episode {max_mse_ep} and a min of {min_mse} at episode {min_mse_ep}.'
-
-    print('\nEvaluation Summary:')
-    print(evaluation_summary)
-
-    with open(f'{network_save_dir}/model_summary.txt', "w") as f:
-        f.write(f'\n\nTraining took a total of {format_time(end_train - start_train)}.'
-                f'\n\n{evaluation_summary}')
-
-    print(f'\n[Info] Successfully exiting program.')
