@@ -319,7 +319,7 @@ class EndToEndConfig:
 
         :param train_dir: full directory to training episodes
         :param test_dir: full directory to testing episodes
-        :return: (test amount, test available, train amount, train available, epochs)
+        :return: (train amount, train available, test amount, test available, epochs)
         """
         text = ['training', 'testing']
         amounts = [0, 0]
