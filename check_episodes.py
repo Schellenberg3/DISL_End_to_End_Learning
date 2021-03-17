@@ -57,8 +57,10 @@ if __name__ == '__main__':
     avg = np.mean(count)
     std = np.std(count)
     factor = 2
-    fewer_errors = []
-    more_errors = []
+    fewer_name = []
+    fewer_size = []
+    more_name = []
+    more_size = []
     min_size = [float('inf'), '']
     max_size = [-1, '']
 
@@ -76,29 +78,33 @@ if __name__ == '__main__':
             max_size[1] = new_name
 
         if size < (avg - factor*std):
-            fewer_errors.append(new_name)
+            fewer_name.append(new_name)
+            fewer_size.append(size)
         elif size > (avg + factor*std):
-            more_errors.append(new_name)
+            more_name.append(new_name)
+            more_size.append(size)
 
     end_rename = time.perf_counter()
 
-    s = 's'
+    print(f'\n[Info] Finished renaming files.')
 
-    if len(fewer_errors) != 0:
+    s = '/'
+
+    if len(fewer_name) != 0:
         print(f'\n[WARN] The following files seem to have fewer time steps in then than most. '
               f'All have at least {int(factor*std)} or fewer steps than the dataset average ({avg:.3f}). '
               f'It would be wise to manually check these')
-        [print(possible_error.split('/')[-1]) for possible_error in fewer_errors]
+        [print(f'{fewer_size[i]} at {possible_error.split(s)[-1]}') for i, possible_error in enumerate(fewer_name)]
 
-    if len(more_errors) != 0:
+    if len(more_name) != 0:
         print(f'\n[WARN] The following files seem to have more time steps in then than most. '
               f'All have at least {int(factor*std)} or more steps than the dataset average ({avg:.3f}). '
               f'It would be wise to manually check these')
-        [print(possible_error.split('/')[-1]) for possible_error in more_errors]
+        [print(f'{more_size[i]} at {possible_error.split(s)[-1]}') for i, possible_error in enumerate(more_name)]
 
     print(f'\n[Info] The average number of steps per episode was {avg:.3f} with standard deviation of {std:.3f}.')
-    print(f'[Info] Max number of steps: {max_size[0]} at {max_size[1].split("/")[-1]}')
-    print(f'[Info] Min number of steps: {min_size[0]} at {min_size[1].split("/")[-1]}')
+    print(f'[Info] Max number of steps: {max_size[0]} at {max_size[1].split(s)[-1]}')
+    print(f'[Info] Min number of steps: {min_size[0]} at {min_size[1].split(s)[-1]}')
 
     print(f'\n[Info] Successfully renamed {num_to_rename} files at: {broken_dataset_dir}. '
           f'Process took {end_rename - start_rename:.3f} seconds. Exiting program.')
