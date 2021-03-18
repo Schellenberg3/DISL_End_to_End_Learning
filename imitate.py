@@ -53,7 +53,7 @@ if __name__ == "__main__":
     else:
         print(f'\n[Info] Continuing the training of an existing model')
 
-        network_name, network_dir = config.get_trained_network()
+        network_dir, network_name = config.get_trained_network()
         parsed_name = network_name.split('_')
 
         network_info = config.get_info_from_network_name(parsed_name)
@@ -80,9 +80,7 @@ if __name__ == "__main__":
             print('[Warn] Epochs must be an integer greater than 1. Will train for just 1 epoch.')
             epochs = 1
 
-        network = load_model(join(config.network_root,
-                                  'imitation',
-                                  network_dir))
+        network = load_model(network_dir)
 
         final_epochs = 'by' + str(prev_epoch + epochs)
 
@@ -90,9 +88,7 @@ if __name__ == "__main__":
         parsed_name[i] = final_epochs
         network_name = '_'.join(parsed_name)
 
-        prev_train_performance = np.loadtxt(join(config.network_root,
-                                                 'imitation',
-                                                 network_dir,
+        prev_train_performance = np.loadtxt(join(network_dir,
                                                  'train_performance.csv'),
                                             delimiter=",")
 
