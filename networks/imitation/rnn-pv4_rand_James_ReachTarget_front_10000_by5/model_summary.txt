@@ -24,3 +24,19 @@ Tested on /home/andrew/research/DISL/data/training_randomized/ReachTarget/variat
 The 5 episodes were numbers [4689, 2149, 2070, 9548, 7441] 
 Found an average mse of 2.7988255715172274e-05 with a max of 5.230485840002075e-05 at episode 9548 and a min of 1.1105110388598405e-05 at episode 2149.
 5 episodes were used for testing.
+
+-------------------------------------------------------
+
+Evaluated at 2021-03-25 01:38:01.786640 
+Tested on /home/andrew/research/DISL/data/testing_randomized/ReachTarget/variation0/episodes 
+The 20 episodes were numbers [18, 4, 12, 14, 13, 15, 11, 16, 3, 7, 1, 0, 17, 19, 9, 10, 5, 2, 6, 8] 
+Found an average mse of 1.5892833471298217e-05 with a max of 2.7980922823189758e-05 at episode 5 and a min of 1.1672409527818672e-05 at episode 3.
+20 episodes were used for testing.
+
+-------------------------------------------------------
+
+Evaluated at 2021-03-25 01:39:54.361120 
+Tested on /home/andrew/research/DISL/data/testing/ReachTarget/variation0/episodes 
+The 20 episodes were numbers [0, 1, 3, 7, 16, 18, 17, 15, 5, 19, 6, 9, 4, 8, 2, 12, 14, 11, 13, 10] 
+Found an average mse of 3.625217323133256e-05 with a max of 0.00011671879474306479 at episode 3 and a min of 1.2565222277771682e-05 at episode 7.
+20 episodes were used for testing.

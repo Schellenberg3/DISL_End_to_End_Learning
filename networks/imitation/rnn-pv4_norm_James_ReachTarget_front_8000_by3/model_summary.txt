@@ -16,3 +16,35 @@ Tested on /home/andrew/research/DISL/data/testing/ReachTarget/variation0/episode
 The 5 episodes were numbers [17, 0, 5, 4, 14] 
 Found an average mse of 4.561142486636527e-05 with a max of 4.694647577707656e-05 at episode 4 and a min of 4.4774038542527705e-05 at episode 5.
 5 episodes were used for testing.
+
+-------------------------------------------------------
+
+Evaluated at 2021-03-22 13:17:44.326446 
+Tested on /home/andrew/research/DISL/data/training_randomized/ReachTarget/variation0/episodes 
+The 5 episodes were numbers [5719, 8351, 8801, 962, 8646] 
+Found an average mse of 0.0001828243082854897 with a max of 0.0003068785008508712 at episode 8801 and a min of 0.0001103059621527791 at episode 962.
+5 episodes were used for testing.
+
+-------------------------------------------------------
+
+Evaluated at 2021-03-22 13:40:48.349638 
+Tested on /home/andrew/research/DISL/data/testing/ReachTarget/variation0/episodes 
+The 5 episodes were numbers [0, 4, 19, 11, 6] 
+Found an average mse of 4.640349798137322e-05 with a max of 4.694647577707656e-05 at episode 4 and a min of 4.667524990509264e-05 at episode 11.
+5 episodes were used for testing.
+
+-------------------------------------------------------
+
+Evaluated at 2021-03-25 01:42:53.470519 
+Tested on /home/andrew/research/DISL/data/testing_randomized/ReachTarget/variation0/episodes 
+The 20 episodes were numbers [4, 16, 17, 8, 7, 12, 15, 18, 5, 14, 1, 3, 13, 10, 2, 11, 19, 0, 6, 9] 
+Found an average mse of 0.00018039045098703355 with a max of 0.000302897795336321 at episode 12 and a min of 6.236417539184913e-05 at episode 7.
+20 episodes were used for testing.
+
+-------------------------------------------------------
+
+Evaluated at 2021-03-25 01:44:10.675134 
+Tested on /home/andrew/research/DISL/data/testing/ReachTarget/variation0/episodes 
+The 20 episodes were numbers [9, 5, 16, 18, 1, 0, 11, 15, 4, 7, 13, 12, 2, 8, 14, 3, 6, 10, 17, 19] 
+Found an average mse of 5.212373289396055e-05 with a max of 7.760680455248803e-05 at episode 18 and a min of 4.461609569261782e-05 at episode 7.
+20 episodes were used for testing.

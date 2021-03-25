@@ -32,3 +32,11 @@ Tested on /home/andrew/research/DISL/data/training/ReachTarget/variation0/episod
 The 5 episodes were numbers [6987, 4221, 7707, 6362, 7231] 
 Found an average mse of 2.3437905156242776e-06 with a max of 3.2622517665004125e-06 at episode 7231 and a min of 1.1529665471243788e-06 at episode 6362.
 5 episodes were used for testing.
+
+-------------------------------------------------------
+
+Evaluated at 2021-03-22 13:38:41.202543 
+Tested on /home/andrew/research/DISL/data/testing_randomized/ReachTarget/variation0/episodes 
+The 5 episodes were numbers [3, 8, 4, 1, 6] 
+Found an average mse of 1.3988850014357012e-06 with a max of 2.075540123769315e-06 at episode 4 and a min of 9.477815865466255e-07 at episode 8.
+5 episodes were used for testing.
