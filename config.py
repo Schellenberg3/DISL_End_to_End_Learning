@@ -4,6 +4,7 @@ from utils.networks import position_vision
 from utils.networks import position_vision_4
 from utils.networks import rnn_position_vision
 from utils.networks import rnn_position_vision_4
+from utils.utils import alpha_numeric_sort
 from utils.utils import split_data
 from utils.utils import split_data_4
 from utils.utils import check_yes
@@ -198,7 +199,7 @@ class EndToEndConfig:
         i = 0  # Only count if the item in network_root is a folder with children
         print(f'\nNetworks from the following directories may be used: ')
         for sub_dir in self.network_sub_dir:
-            for net_dir in listdir(join(self.network_root, sub_dir)):
+            for net_dir in alpha_numeric_sort(listdir(join(self.network_root, sub_dir))):
                 try:
                     _ = listdir(join(self.network_root, sub_dir, net_dir))
                     self._possible_network.append(join(sub_dir, net_dir))
@@ -316,7 +317,8 @@ class EndToEndConfig:
         """
         i = 0  # Only count if the item in dataset_root is a folder with children
         print(f'\nThe data from the following directories may be used: ')
-        for folder in listdir(join(self.data_root)):
+
+        for folder in alpha_numeric_sort(listdir(join(self.data_root))):
             try:
                 for data in listdir(join(self.data_root, folder)):
                     self.possible_data_set.append(join(folder, data))

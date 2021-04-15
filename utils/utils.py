@@ -13,6 +13,18 @@ import pickle
 import shutil
 import random
 import os
+import re
+
+
+def alpha_numeric_sort(unsorted: List[str]) -> List[str]:
+    """ Sorts a list by alphabetical order and accounts for numeric values
+
+    :param unsorted: the unsorted list of words
+    :return: the sorted list
+    """
+    convert = lambda text: int(text) if text.isdigit() else text
+    alphanum_key = lambda key: [convert(c) for c in re.split('([0-9]+)', key)]
+    return sorted(unsorted, key=alphanum_key)
 
 
 def check_yes(text: str) -> bool:
