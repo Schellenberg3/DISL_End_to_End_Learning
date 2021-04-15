@@ -37,7 +37,7 @@ This section summarizes those and sets up the file structure to use this code.
 ```shell
 git clone https://github.com/Schellenberg3/DISL_End_to_End_Learning.git
 git clone https://github.com/stepjam/PyRep.git
-git clone https://github.com/stepjam/RLBench.git
+git clone https://github.com/Schellenberg3/RLBench.git
 ```
 
 **CoppeliaSim** may be downloaded from the company's website [here](https://www.coppeliarobotics.com/downloads). The Edu version is used and is downloaded as a `.tar` file. To extract this to your home directory run:
@@ -79,14 +79,7 @@ pip3 install -r requirements.txt
 pip3 install .
 ```
 
-Or if you plan to edit RLBench (which you may for making new tasks) the following will make sure any changes are in place without having to intal each time:
-
-```
-pip3 install . -e
-```
-
-
-
+It is important to note that a custom fork is used. This contains a custom task for picking up a cup (DISL pick up blue cup). The [main repo](https://github.com/stepjam/RLBench) may be used if all refences to this class are removed from the code in these files.
 
 
 **TensorFlow** may be installed by:
@@ -98,7 +91,8 @@ pip3 install tensorflow
 **Finally** we'll finish setting up the directories with:
 
 ```shell
-cd DISL_End_to_End_Learning && mkdir data
+cd ../DISL_End_to_End_Learning && mkdir data
+
 ```
 
 
@@ -172,6 +166,7 @@ networks/imitation/{NN strucure}_{CNN-Structure}_{Task Name}_{Training Amount}_b
 
 In the NN's directory `model_summary.txt` records the results from the testing episodes.  Snapshots of the models MSE over the course of training are saved in `train_performance.csv`    
 
+An already trained network may be loaded in for additional training epochs.
 
 
 #### Evaluate
