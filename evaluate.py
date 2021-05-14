@@ -41,27 +41,10 @@ if __name__ == "__main__":
 
     eval_order = get_order(eval_amount, eval_available)
 
-    try:
-        with open(join(network_dir, 'train_performance.plk'), 'rb') as fp:
-            history = pickle.load(fp)
-
-        print(f'\n[Info] Finished loading the network training history. Displaying graph now.')
-        steps = []
-        mse = []
-        for h in history:
-            steps.append(h['steps'])
-            mse.append(h['mse'][0])
-
-        # todo resolve display issue
-        # plt.plot(steps, mse)
-        # plt.xlabel('Steps')
-        # plt.ylabel('MSE')
-        # plt.title('Training MSE')
-        # plt.grid(True)
-        # plt.show()
-        # plt.savefig(join(network_dir, 'training_mse.png'))
-    except FileNotFoundError:
-        print(f'[Warn] No pickle was found in the {network_name} directory. Skipping graph.')
+    fig, axs = plt.subplots(7)
+    for axis in axs:
+        axis.set_ylim(-0.1, 1.1)
+    fig.suptitle('Joint Angles')
 
     print(f'\n[info] Beginning to evaluate the model on {eval_amount} episodes')
 
@@ -84,6 +67,14 @@ if __name__ == "__main__":
                                      verbose=1,
                                      batch_size=len(test_pose))
 
+        axs[0].plot(np.array(test_pose)[:, 0])
+        axs[1].plot(np.array(test_pose)[:, 1])
+        axs[2].plot(np.array(test_pose)[:, 2])
+        axs[3].plot(np.array(test_pose)[:, 3])
+        axs[4].plot(np.array(test_pose)[:, 4])
+        axs[5].plot(np.array(test_pose)[:, 5])
+        axs[6].plot(np.array(test_pose)[:, 6])
+
         avg_mse += mse
 
         if mse > max_mse:
@@ -92,6 +83,8 @@ if __name__ == "__main__":
         elif mse < min_mse:
             min_mse = mse
             min_mse_ep = episode
+
+    plt.show()
 
     try:
         avg_acc = avg_mse / len(eval_order)
