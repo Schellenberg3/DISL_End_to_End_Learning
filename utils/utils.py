@@ -498,3 +498,72 @@ def split_data_4(episode, pov: str) -> Tuple[List[np.ndarray], List[np.ndarray],
 
     return data, images, label
 
+
+def split_data_4_v2(episode: np.ndarray, pov: str) -> \
+        Tuple[Tuple[List[np.ndarray], List[int], List[np.ndarray]],
+              Tuple[List[np.ndarray], List[int], List[np.ndarray], List[np.ndarray]]]:
+    """ Takes an episode and splits it into the joint data (including gripper), the depth image,
+    and the next position (ground truth label). Returns a list with the values for each
+    of these at evey step in the episode.
+
+    :param episode: Episode to split
+    :param pov:     Either 'wrist' or 'front', tells which images to use
+    :return: Tuple of lists for joint data, depth image, and ground truth label
+    """
+    blank_image = np.zeros((128, 128, 4))
+    image_t0 = blank_image.copy()
+    image_t1 = blank_image.copy()
+    image_t2 = blank_image.copy()
+    image_t3 = blank_image.copy()
+
+    # Input Data
+    angles = []  # Input angle
+    action = []  # Input gripper action (open or close)
+    images = []  # Input image (set of 4 depth images)
+
+    # Prediction/Ground Truth labels
+    label_angles = []   # True angles
+    label_action = []   # True gripper action (open or close)
+    label_target = []   # True position of the target object (e.g. a cup)
+    label_gripper = []  # True position of the robot's gripper
+
+    for step in range(len(episode)):
+        angles.append(episode[step].joint_positions)
+        action.append(episode[step].gripper_open)
+
+        if pov == 'wrist':
+            image = np.dstack((episode[step].wrist_rgb,
+                               episode[step].wrist_depth))
+        elif pov == 'front':
+            image = np.dstack((episode[step].front_rgb,
+                               episode[step].front_depth))
+        else:
+            image = np.dstack((episode[step].front_rgb,
+                               episode[step].front_depth))
+
+        image_t3 = image_t2.copy()
+        image_t2 = image_t1.copy()
+        image_t1 = image_t0.copy()
+        image_t0 = image.copy()
+        image_stack = np.dstack((image_t0,
+                                 image_t1,
+                                 image_t2,
+                                 image_t3))
+
+        images.append(image_stack)
+
+        try:
+            label_angles.append(episode[step + 1].joint_positions)
+            label_action.append(episode[step + 1].gripper_open)
+            label_target.append(episode[step + 1].task_low_dim_state[0])
+            label_gripper.append(episode[step + 1].task_low_dim_state[-1])
+        except IndexError:
+            label_angles.append(episode[step].joint_positions)
+            label_action.append(episode[step].gripper_open)
+            label_target.append(episode[step].task_low_dim_state[0])
+            label_gripper.append(episode[step].task_low_dim_state[-1])
+
+    inputs = (angles, action, images)
+    labels = (label_angles, label_action, label_target, label_gripper)
+
+    return inputs, labels
