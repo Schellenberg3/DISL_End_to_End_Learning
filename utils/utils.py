@@ -2,6 +2,7 @@ from rlbench.backend.const import *
 from rlbench.backend.utils import float_array_to_rgb_image
 from rlbench.backend.utils import rgb_handles_to_mask
 from rlbench.backend.utils import image_to_float_array
+from rlbench.observation_config import ObservationConfig
 from rlbench.utils import _resize_if_needed
 from os.path import join
 from os import listdir
@@ -88,7 +89,7 @@ def get_order(amount: int, available: int, epochs=1) -> List[int]:
     return order
 
 
-def save_episodes(episodes, data_set_path: str, start_episode=0) -> None:
+def save_episodes(episodes: List[np.ndarray], data_set_path: str, start_episode=0) -> None:
     """ Takes a list of demos/episodes and saves them to disk under the
     data folder.
 
@@ -105,7 +106,7 @@ def save_episodes(episodes, data_set_path: str, start_episode=0) -> None:
         _save_episode(demo, p)
 
 
-def _save_episode(episodes, episode_path: str):
+def _save_episode(episodes: np.ndarray, episode_path: str):
     """ Takes one full demo/episode and saves it in the provided
     directory.
 
@@ -214,7 +215,7 @@ def _save_episode(episodes, episode_path: str):
         pickle.dump(episodes, file)
 
 
-def load_data(path: str, example_num: int, obs_config):
+def load_data(path: str, example_num: int, obs_config: ObservationConfig) -> np.ndarray:
     """ Loads a full demo/episode from disk based on the provided
     data path, episode number, and observation configuration
 
@@ -368,7 +369,7 @@ def load_data(path: str, example_num: int, obs_config):
     return obs
 
 
-def format_data(episode):
+def format_data(episode: np.ndarray) -> np.ndarray:
     """ Takes a demo/episode loaded from disk and normalizes the images to
     a range of [0,1]. Also scales the joint positions from [-3.14, 3.14]
     to [0,1] to normalize.
@@ -391,7 +392,7 @@ def format_data(episode):
     return episode
 
 
-def scale_pose(array, old_min=0., old_max=1., new_min=-3.14, new_max=3.14):
+def scale_pose(array: np.ndarray, old_min=0., old_max=1., new_min=-3.14, new_max=3.14) -> np.ndarray:
     """ Scales all values of an array from one range to another. By default this is from [0,1]
     to [-3.14, 3.14].  Used to normalize position values in training.  When using a network this
     should be called on the position (but not gripper!) part of the output.
@@ -408,7 +409,7 @@ def scale_pose(array, old_min=0., old_max=1., new_min=-3.14, new_max=3.14):
     return array
 
 
-def split_data(episode, pov: str) -> Tuple[List[np.ndarray], List[np.ndarray], List[np.ndarray]]:
+def split_data(episode: np.ndarray, pov: str) -> Tuple[List[np.ndarray], List[np.ndarray], List[np.ndarray]]:
     """ Takes an episode and splits it into the joint data (including gripper), the depth image,
     and the next position (ground truth label). Returns a list with the values for each
     of these at evey step in the episode.
@@ -445,7 +446,7 @@ def split_data(episode, pov: str) -> Tuple[List[np.ndarray], List[np.ndarray], L
     return data, images, label
 
 
-def split_data_4(episode, pov: str) -> Tuple[List[np.ndarray], List[np.ndarray], List[np.ndarray]]:
+def split_data_4(episode: np.ndarray, pov: str) -> Tuple[List[np.ndarray], List[np.ndarray], List[np.ndarray]]:
     """ Takes an episode and splits it into the joint data (including gripper), the depth image,
     and the next position (ground truth label). Returns a list with the values for each
     of these at evey step in the episode.
