@@ -1,0 +1,26 @@
+
+
+Training took a total of  19h 19m  1s.
+
+Network created and evaluated at 2021-03-23 09:49:02.215827 
+Training directory was: /home/andrew/research/DISL/data/training_randomized/ReachTarget/variation0/episodes
+Training took  19h 19m  1s 
+Testing directory was: /home/andrew/research/DISL/data/training_randomized/ReachTarget/variation0/episodes 
+Number of testing episodes was 0 
+Found an average mse of NO EVALUATION with a max of -1 at episode -1 and a min of inf at episode -1.
+
+-------------------------------------------------------
+
+Evaluated at 2021-03-25 01:21:52.134979 
+Tested on /home/andrew/research/DISL/data/testing/ReachTarget/variation0/episodes 
+The 20 episodes were numbers [1, 18, 0, 2, 13, 10, 8, 4, 3, 7, 19, 11, 5, 9, 17, 14, 16, 15, 12, 6] 
+Found an average mse of 0.004362828237935901 with a max of 0.0073739769868552685 at episode 1 and a min of 0.002599048428237438 at episode 2.
+20 episodes were used for testing.
+
+-------------------------------------------------------
+
+Evaluated at 2021-03-25 01:30:20.912856 
+Tested on /home/andrew/research/DISL/data/testing_randomized/ReachTarget/variation0/episodes 
+The 20 episodes were numbers [13, 7, 8, 11, 2, 4, 9, 0, 6, 15, 10, 5, 16, 19, 1, 17, 3, 14, 12, 18] 
+Found an average mse of 0.0033985197660513222 with a max of 0.008089586161077023 at episode 13 and a min of 0.0005002744728699327 at episode 2.
+20 episodes were used for testing.

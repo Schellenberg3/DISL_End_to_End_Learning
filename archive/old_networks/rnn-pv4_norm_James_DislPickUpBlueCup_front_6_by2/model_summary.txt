@@ -1,0 +1,18 @@
+
+
+Training took a total of   0h  0m 51s.
+
+Network created and evaluated at 2021-05-14 15:00:29.303468 
+Training directory was: /home/andrew/Research/DISL_End_to_End_Learning/data/misc/DislPickUpBlueCup/variation0/episodes
+Training took   0h  0m 51s 
+Testing directory was: /home/andrew/Research/DISL_End_to_End_Learning/data/misc/DislPickUpBlueCup/variation0/episodes 
+Number of testing episodes was 6 
+Found an average mse of 0.27337364355723065 with a max of 0.2802395522594452 at episode 0 and a min of 0.2596418261528015 at episode 1.
+
+-------------------------------------------------------
+
+Evaluated at 2021-05-14 15:03:30.699628 
+Tested on /home/andrew/Research/DISL_End_to_End_Learning/data/misc/DislPickUpBlueCup/variation0/episodes 
+The 4 episodes were numbers [2, 5, 0, 3] 
+Found an average mse of 0.27509012073278427 with a max of 0.2802395522594452 at episode 2 and a min of 0.2596418261528015 at episode 3.
+4 episodes were used for testing.
