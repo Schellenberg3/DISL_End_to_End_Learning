@@ -1,18 +1,23 @@
 from rlbench.tasks import DislPickUpBlueCup
 from rlbench.tasks import ReachTarget
+
 from utils.networks import position_vision
 from utils.networks import position_vision_4
 from utils.networks import rnn_position_vision
 from utils.networks import rnn_position_vision_4
+from utils.networks import multi_input_multi_output
 from utils.utils import alpha_numeric_sort
 from utils.utils import split_data
 from utils.utils import split_data_4
+from utils.utils import split_data_4_v2
 from utils.utils import check_yes
+
 from os.path import dirname
 from os.path import realpath
 from os.path import join
 from os.path import isdir
 from os import listdir
+
 from typing import Tuple
 from typing import List
 from typing import Any
@@ -48,6 +53,9 @@ class EndToEndConfig:
                                 "rnn_position_vision_4": ("rnn-pv4",
                                                           rnn_position_vision_4,
                                                           split_data_4),
+                                "multi_input_multi_output": ("multi_input_multi_output",
+                                                             multi_input_multi_output,
+                                                             split_data_4_v2)
                                 }
 
         # task name : RLBench object

@@ -135,6 +135,37 @@ def position_vision_4(vis_settings="James"):
     return Model(inputs=[pos_model.input, vis_model.input], outputs=out)
 
 
+def multi_input_multi_output(vis_settings="James"):
+
+    input_angles = Input(shape=7)  # Joint angles for each of the panda's seven joints
+    input_action = Input(shape=1)  # Gripper action; catagorical with 0 := close and 1 := open
+    vis_model = vis_net(settings=vis_settings, four_deep=True)
+
+    combined = Concatenate()([input_angles, input_action, vis_model.output])
+
+    z = Reshape((1, combined.shape[1]))(combined)
+    z = LSTM(128)(z)
+    z = Dense(128, activation="relu")(z)
+
+    output_angles = Dense(7, activation="linear")(z)   # Joint angles, continuous
+    output_action = Dense(1, activation="linear")(z)   # Gripper action, categorical
+    output_target = Dense(3, activation="linear")(z)   # Target (e.g. a cup) Cartesian position, continuous
+    output_gripper = Dense(3, activation="linear")(z)  # Gripper Cartesian position, continuous
+
+    model = Model(inputs=[input_angles, input_action, vis_model.input],
+                  outputs=[output_angles, output_action, output_target, output_gripper])
+
+    return model
+
+    model.compile(optimizer='adam',
+                  loss={'output_angles': 'cosine_similarity',
+                        'output_action': 'sparse_categorical_crossentropy',
+                        'output_target': 'mse',
+                        'output_gripper': 'mse',
+                        }
+                  )
+
+
 def save_network_info(name, settings, func, directory):
     print(f'\n\nSummary for position_vision with {settings} settings')
     model = func(settings)
