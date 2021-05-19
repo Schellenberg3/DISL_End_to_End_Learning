@@ -160,7 +160,7 @@ class NetworkBuilder(object):
         else:
             raise RuntimeError('Network must be built before it has a name')
 
-    def get_compiled_network(self) -> Model:
+    def get_network(self) -> Model:
         """
         Getter function for the compiled network
         """
