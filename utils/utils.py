@@ -556,13 +556,16 @@ def split_data_4_v2(episode: np.ndarray, pov: str) -> \
         try:
             label_angles.append(episode[step + 1].joint_positions)
             label_action.append(episode[step + 1].gripper_open)
-            label_target.append(episode[step + 1].task_low_dim_state[0])
-            label_gripper.append(episode[step + 1].task_low_dim_state[-1])
+
+            # TODO: Possible future update to this section...
+            #       The dataset records (X,Y,Z,Qx,Qy,Qz,Qw) but we only want (X,Y,Z) for now
+            label_target.append(episode[step + 1].task_low_dim_state[0][:3])
+            label_gripper.append(episode[step + 1].task_low_dim_state[-1][:3])
         except IndexError:
             label_angles.append(episode[step].joint_positions)
             label_action.append(episode[step].gripper_open)
-            label_target.append(episode[step].task_low_dim_state[0])
-            label_gripper.append(episode[step].task_low_dim_state[-1])
+            label_target.append(episode[step].task_low_dim_state[0][:3])
+            label_gripper.append(episode[step].task_low_dim_state[-1][:3])
 
     inputs = (angles, action, images)
     labels = (label_angles, label_action, label_target, label_gripper)
