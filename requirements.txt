@@ -1,3 +1,5 @@
 matplotlib
 psutil
 tensorflow
+PIL
+numpy
