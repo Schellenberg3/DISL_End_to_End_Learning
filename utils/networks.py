@@ -119,9 +119,9 @@ class NetworkBuilder(object):
         output_target = Dense(3, activation="linear")(z)   # Target (e.g. a cup) Cartesian position, continuous
         output_gripper = Dense(3, activation="linear")(z)  # Gripper Cartesian position, continuous
 
-        network = Model(inputs=[joint_model.output,
-                                grip_model.output,
-                                vis_model.output],
+        network = Model(inputs=[joint_model.input,
+                                grip_model.input,
+                                vis_model.input],
                         outputs=[output_joints,
                                  output_action,
                                  output_target,
