@@ -1,3 +1,4 @@
+from rlbench.demo import Demo
 from rlbench.backend.const import *
 from rlbench.backend.utils import float_array_to_rgb_image
 from rlbench.backend.utils import rgb_handles_to_mask
@@ -551,6 +552,101 @@ def split_data_4_v2(episode: np.ndarray, pov: str) -> \
                                  image_t2,
                                  image_t3))
 
+        images.append(image_stack)
+
+        try:
+            label_angles.append(episode[step + 1].joint_positions)
+            label_action.append(episode[step + 1].gripper_open)
+
+            # TODO: Possible future update to this section...
+            #       The dataset records (X,Y,Z,Qx,Qy,Qz,Qw) but we only want (X,Y,Z) for now
+            label_target.append(episode[step + 1].task_low_dim_state[0][:3])
+            label_gripper.append(episode[step + 1].task_low_dim_state[-1][:3])
+        except IndexError:
+            label_angles.append(episode[step].joint_positions)
+            label_action.append(episode[step].gripper_open)
+            label_target.append(episode[step].task_low_dim_state[0][:3])
+            label_gripper.append(episode[step].task_low_dim_state[-1][:3])
+
+    inputs = (angles, action, images)
+    labels = (label_angles, label_action, label_target, label_gripper)
+
+    return inputs, labels
+
+
+def step_images(image_list: List[np.ndarray], new_image: np.ndarray) -> List[np.ndarray]:
+    """
+    Takes a list (or 'history') of images and adds a new images to the front while passing
+    the previous images back. Returns this new list.
+
+    :param image_list: List of images from previous step
+    :param new_image:  Image to add at current step
+
+    :return: List of images for current step
+    """
+    for i in range(len(image_list), 0, -1):
+        image_list[i] = image_list[i - 1].copy()
+    image_list[0] = new_image.copy
+
+    return image_list
+
+
+def blank_image_list(num_images: int) -> List[np.ndarray]:
+    """
+    Creates a list of blank (all zero) depth images. Each image is a numpy array of size 128x128x4.
+
+    :param num_images: Number of blank images to initialize the list with.
+
+    :return: List of blank images
+    """
+    images = []
+    blank_image = np.zeros((128, 128, 4))
+    for i in range(num_images):
+        images.append(blank_image.copy())
+    return images
+
+
+def split_data(episode: Demo, num_images: int = 4, pov: str = 'front') -> \
+        Tuple[Tuple[List[np.ndarray], List[int], List[np.ndarray]],
+              Tuple[List[np.ndarray], List[int], List[np.ndarray], List[np.ndarray]]]:
+    """ Takes an episode and splits it into the joint data (including gripper), the depth image,
+    and the next position (ground truth label). Returns a list with the values for each
+    of these at evey step in the episode.
+
+    :param episode:    Episode to split
+    :param num_images: Number of images to use for the image input.
+    :param pov:        Either 'wrist' or 'front', tells which images to use
+
+    :return: Tuple of lists for joint data, depth image, and ground truth label
+    """
+
+    # Input Data
+    angles = []  # Input angle
+    action = []  # Input gripper action (open or close)
+    images = []  # Input images
+    image_list = blank_image_list(num_images)  # Helper for creating the images input at each step
+
+    # Prediction/Ground Truth labels
+    label_angles = []   # True angles
+    label_action = []   # True gripper action (open or close)
+    label_target = []   # True position of the target object (e.g. a cup)
+    label_gripper = []  # True position of the robot's gripper
+
+    for step in range(len(episode)):
+        angles.append(episode[step].joint_positions)
+        action.append(episode[step].gripper_open)
+
+        if pov == 'wrist':
+            image = np.dstack((episode[step].wrist_rgb,
+                               episode[step].wrist_depth))
+        elif pov == 'front':
+            image = np.dstack((episode[step].front_rgb,
+                               episode[step].front_depth))
+
+        image_list = step_images(image_list=image_list,
+                                 new_image=image)
+
+        image_stack = np.dstack(image_list)
         images.append(image_stack)
 
         try:
