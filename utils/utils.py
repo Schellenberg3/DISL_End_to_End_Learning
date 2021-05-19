@@ -5,11 +5,15 @@ from rlbench.backend.utils import rgb_handles_to_mask
 from rlbench.backend.utils import image_to_float_array
 from rlbench.observation_config import ObservationConfig
 from rlbench.utils import _resize_if_needed
+
 from os.path import join
 from os import listdir
+
 from typing import List
 from typing import Tuple
+
 from PIL import Image
+
 import numpy as np
 import pickle
 import shutil
@@ -22,6 +26,7 @@ def alpha_numeric_sort(unsorted: List[str]) -> List[str]:
     """ Sorts a list by alphabetical order and accounts for numeric values
 
     :param unsorted: the unsorted list of words
+
     :return: the sorted list
     """
     convert = lambda text: int(text) if text.isdigit() else text
@@ -33,6 +38,7 @@ def check_yes(text: str) -> bool:
     """ Verifies that a users input is either yes or 1
 
     :param text: Prompt to get input
+
     :return: bool
     """
     response = input(text)
@@ -47,6 +53,7 @@ def format_time(seconds: float) -> str:
     minutes, and seconds.
 
     :param seconds: Time as a float
+
     :return: String with the time formatted
     """
     h = int(seconds/3600)
@@ -61,6 +68,7 @@ def check_and_make(directory: str) -> None:
     are removed first.
 
     :param directory: Path to a directory
+
     :return: None
     """
     if not os.path.exists(directory):
@@ -79,6 +87,7 @@ def get_order(amount: int, available: int, epochs=1) -> List[int]:
     :param amount:    Number of episodes to pick
     :param available: The total number of episodes to pick from
     :param epochs:    How many times the selected episodes should appear
+
     :return: list of episode numbers
     """
     order = []
@@ -90,13 +99,14 @@ def get_order(amount: int, available: int, epochs=1) -> List[int]:
     return order
 
 
-def save_episodes(episodes: List[np.ndarray], data_set_path: str, start_episode=0) -> None:
+def save_episodes(episodes: np.ndarray[Demo], data_set_path: str, start_episode=0) -> None:
     """ Takes a list of demos/episodes and saves them to disk under the
     data folder.
 
     :param episodes:      A set of one or more RLBench demos
     :param data_set_path: Path to the data set's root, usually the task's name
     :param start_episode: Offset to save at if there are existing demos
+
     :return: None
     """
     for i, demo in enumerate(episodes):
@@ -107,12 +117,13 @@ def save_episodes(episodes: List[np.ndarray], data_set_path: str, start_episode=
         _save_episode(demo, p)
 
 
-def _save_episode(episodes: np.ndarray, episode_path: str):
+def _save_episode(episode: Demo, episode_path: str) -> None:
     """ Takes one full demo/episode and saves it in the provided
     directory.
 
-    :param episodes:     A single RLBench episode, also a list of observations
+    :param episode:      A single RLBench episode, also a list of observations
     :param episode_path: directory to save the example in
+
     :return: None
     """
     # Save image data first, and then None the image data, and pickle
@@ -148,7 +159,7 @@ def _save_episode(episodes: np.ndarray, episode_path: str):
     check_and_make(front_depth_path)
     check_and_make(front_mask_path)
 
-    for i, obs in enumerate(episodes):
+    for i, obs in enumerate(episode):
         left_shoulder_rgb = Image.fromarray(
             (obs.left_shoulder_rgb * 255).astype(np.uint8))
         left_shoulder_depth = float_array_to_rgb_image(
@@ -205,7 +216,7 @@ def _save_episode(episodes: np.ndarray, episode_path: str):
         obs.front_depth = None
         obs.front_mask = None
 
-    num_steps = len(episodes)
+    num_steps = len(episode)
 
     if not (num_steps == len(listdir(left_shoulder_rgb_path))):
         print(f'[WARN] Broken dataset assumption. This file may not load properly. '
@@ -213,17 +224,18 @@ def _save_episode(episodes: np.ndarray, episode_path: str):
 
     # Save the low-dimension data
     with open(os.path.join(episode_path, LOW_DIM_PICKLE), 'wb') as file:
-        pickle.dump(episodes, file)
+        pickle.dump(episode, file)
 
 
-def load_data(path: str, example_num: int, obs_config: ObservationConfig) -> np.ndarray:
+def load_data(path: str, example_num: int, obs_config: ObservationConfig) -> Demo:
     """ Loads a full demo/episode from disk based on the provided
     data path, episode number, and observation configuration
 
     :param path:        Data set directory
     :param example_num: Requested episode number
     :param obs_config:  RLBench observation configuration
-    :return:
+
+    :return: Demo object for the requested episode
     """
     example_path = join(path, f'episode{example_num}')
 
@@ -370,12 +382,13 @@ def load_data(path: str, example_num: int, obs_config: ObservationConfig) -> np.
     return obs
 
 
-def format_data(episode: np.ndarray) -> np.ndarray:
+def format_data(episode: Demo) -> Demo:
     """ Takes a demo/episode loaded from disk and normalizes the images to
     a range of [0,1]. Also scales the joint positions from [-3.14, 3.14]
     to [0,1] to normalize.
 
     :param episode: Input episode
+
     :return: Same demonstration, now formatted
     """
     for step in range(len(episode)):
@@ -398,11 +411,12 @@ def scale_pose(array: np.ndarray, old_min=0., old_max=1., new_min=-3.14, new_max
     to [-3.14, 3.14].  Used to normalize position values in training.  When using a network this
     should be called on the position (but not gripper!) part of the output.
 
-    :param array: Old values
+    :param array:   Old values
     :param old_min: Old starting value
     :param old_max: Old ending value
     :param new_min: New starting value
     :param new_max: New ending value
+
     :return: New values
     """
     for i in range(len(array)):
