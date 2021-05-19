@@ -135,7 +135,7 @@ class NetworkBuilder(object):
                               }
                         )
 
-        name = ['jg']
+        name = [f'j{self._num_joints}g']
         if self._deep:
             name.append(f'deep')
         name.append(f'v{self._num_images}')
@@ -173,6 +173,7 @@ class NetworkBuilder(object):
         """
         info = {'name': self._name,
                 'num_images': self._num_images,
+                'num_joints': self._num_joints,
                 'deep': self._deep}
         return info
 
