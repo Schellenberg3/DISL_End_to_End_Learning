@@ -135,7 +135,7 @@ class NetworkBuilder(object):
                               }
                         )
 
-        name = ['jg_']
+        name = ['jg']
         if self._deep:
             name.append(f'deep')
         name.append(f'v{self._num_images}')
