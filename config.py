@@ -1,16 +1,14 @@
 from rlbench.tasks import DislPickUpBlueCup
 from rlbench.tasks import ReachTarget
 
-from utils.networks import position_vision
-from utils.networks import position_vision_4
-from utils.networks import rnn_position_vision
-from utils.networks import rnn_position_vision_4
-from utils.networks import multi_input_multi_output
+from utils.networks import NetworkBuilder
 from utils.utils import alpha_numeric_sort
 from utils.utils import split_data
 from utils.utils import split_data_4
 from utils.utils import split_data_4_v2
 from utils.utils import check_yes
+
+from tensorflow.keras import Model
 
 from os.path import dirname
 from os.path import realpath
@@ -19,6 +17,7 @@ from os.path import isdir
 from os import listdir
 
 from typing import Tuple
+from typing import Dict
 from typing import List
 from typing import Any
 
@@ -39,24 +38,6 @@ class EndToEndConfig:
         self.domain_rand_textures = join(dirname(realpath(__file__)), 'utils', 'textures')
 
         self.pov = ['front', 'wrist']
-
-        # long name : short name, model function, related split function
-        self.custom_networks = {"position_vision": ("pv",
-                                                    position_vision,
-                                                    split_data),
-                                "position_vision_4": ("pv4",
-                                                      position_vision_4,
-                                                      split_data_4),
-                                "rnn_position_vision": ("rnn-pv",
-                                                        rnn_position_vision,
-                                                        split_data),
-                                "rnn_position_vision_4": ("rnn-pv4",
-                                                          rnn_position_vision_4,
-                                                          split_data_4),
-                                "multi_input_multi_output": ("multi_input_multi_output",
-                                                             multi_input_multi_output,
-                                                             split_data_4_v2)
-                                }
 
         # task name : RLBench object
         self.tasks = {"ReachTarget": ReachTarget,
@@ -146,55 +127,27 @@ class EndToEndConfig:
             print(f'[Warn] Input "{pov}" is not an option, will use default point of view: front')
             return 'front'
 
-    def get_new_network(self):
-        """ Lists network options from custom_networks and lets user choose pick a
-        configuration. Returns a string describing the network's structure,
-        the network function, and supporting data split function.
+    def get_new_network(self) -> Tuple[Model, str, Dict[str, int, bool]]:
+        """ Uses NetworkBuilder to generate a desired new network.
 
-        :return: (description of network, tensorflow model, data split function)
+        :returns: compiled network, network's name, and network's metainformation
         """
 
-        print('\nThe following networks are available:')
+        print('\nPlease enter the parameters for your network...')
+        deep = bool(input('Use deep networks for gripper and joint inputs (y/n): ')) or False
+        num_images = int(input('How many image should the network use as an input (default 4): ')) or 4
+        num_joints = int(input('How man joints does your robot have (default 7 for Panda): ')) or 7
 
-        model_selection = None
+        builder = NetworkBuilder(deep=deep,
+                                 num_images=num_images,
+                                 num_joints=num_joints)
 
-        list_keys = []
-        for i, (k, v) in enumerate(self.custom_networks.items()):
-            print(f'Option {i}.....{k}')
-            list_keys.append(k)
+        name = builder.get_name()
+        info = builder.get_metainfo()
+        network = builder.get_network()
 
-        try:
-            model_selection = int(input('\nPlease enter the option # for the network you would like to create: '))
-            if model_selection > len(list_keys):
-                exit('[ERROR] Selections must one of the listed options. Exiting program')
-        except ValueError:
-            exit('[ERROR] Selections must be integers. Exiting program')
+        return network, name, info
 
-        if check_yes('\nWill a data set with domain randomization be used in training? (y/n): '):
-            domain = "rand"
-        else:
-            domain = "norm"
-
-        # Hard coding CNN options for now.
-        cnn_setting = "0"
-        # cnn_setting = input('\nEnter 0 to use a James inspired CNN, 1 to use a Hermann inspired CNN, or '
-        #                    'anything else to use the custom one: ')
-
-        if cnn_setting == '0':
-            cnn_setting = "James"
-        elif cnn_setting == '1':
-            cnn_setting = "Hermann"
-        else:
-            cnn_setting = "Custom"
-
-        key = list_keys[model_selection]
-        name = f'{self.custom_networks[key][0]}_{domain}_{cnn_setting}'
-        model = self.custom_networks[key][1](cnn_setting)
-        split = self.custom_networks[key][2]
-
-        print(f'\n[Info] Network will be {key} configured with {cnn_setting} CNN')
-
-        return name, model, split
 
     def list_trained_networks(self) -> None:
         """ Prints a numbered list of all trained networks in the network
