@@ -98,7 +98,6 @@ output_target_pose = Dense(16, activation="linear")(z)
 model = Model(inputs=[input_gripper_state, input_joint_angles, input_depth_history], outputs=[output_gripper_state, output_joint_angles, output_gripper_pose, output_target_pose])
 
 
-
 model.compile(optimizer='adam',
               loss={'output_gripper_state': 'sparse_categorical_crossentropy', 
                     'output_joint_angles': 'cosine_similarity',
@@ -109,7 +108,7 @@ model.compile(optimizer='adam',
 
 print("\n---> Finished compiling the combined model.\n")
 
-keras.utils.plot_model(model, "poist_thesis_network_testing_model.png", show_shapes=True)
+keras.utils.plot_model(model, "post_thesis_network_testing_model.png", show_shapes=True)
 
 print("\n---> Finished compiling the combined model.\n")
 
