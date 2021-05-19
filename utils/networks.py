@@ -90,7 +90,6 @@ class NetworkBuilder(object):
         vis = Dense(256)(vis)
         vis = Activation("relu")(vis)
         vis = BatchNormalization(axis=-1)(vis)
-        vis = Dropout(0.5)(vis)  # Todo remove this
         vis = Activation("relu")(vis)
 
         return Model(inputs=vis_input, outputs=vis)
