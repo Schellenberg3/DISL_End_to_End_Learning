@@ -177,24 +177,25 @@ class NetworkBuilder(object):
         return info
 
 
+def main():
+    print('This script is for testng the NetworkBuilder class. Please define your network...')
+    num_joints = int(input('How many joint inputs: '))
+    num_images = int(input('How many image inputs: '))
+    deep = input('Use deep networks for the gripper and joint branches (y/n): ')
+    deep = True if deep == 'y' else False
+
+    builder = NetworkBuilder(deep=deep,
+                             num_images=num_images,
+                             num_joints=num_joints)
+
+    network = builder.get_network()
+    name = builder.get_name()
+    info = builder.get_metainfo()
+
+    print(f'Network is: {network}')
+    print(f'Network named: {name}')
+    print(f'Network meta information: {info}')
+
+
 if __name__ == "__main__":
-    print("This script contains the basic network configurations considered in the research project.\n"
-          "They are mostly permutations of the same basic model\n")
-
-    use_optimizer = "adam"
-    use_loss = "mean_squared_error"
-    use_metrics = ["accuracy", "mse"]
-
-    cnn_settings = "James"
-
-    save_dir = 'network_info'
-
-    networks = {
-        "rnn_pv": rnn_position_vision,
-        "pv": position_vision,
-        "rnn_pv4": rnn_position_vision_4,
-        "pv4": position_vision_4,
-    }
-
-    for model_name in networks:
-        save_network_info(model_name, cnn_settings, networks[model_name], save_dir)
+    main()
