@@ -128,6 +128,7 @@ if __name__ == '__main__':
     live_demos = True
 
     obs_config = ObservationConfig()
+    obs_config.task_low_dim_state = True
     action_mode = ActionMode(ArmActionMode.ABS_JOINT_POSITION)
 
     processes = []

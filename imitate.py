@@ -135,6 +135,7 @@ if __name__ == "__main__":
     episodes_per_update = 3
 
     obs_config = ObservationConfig()
+    obs_config.task_low_dim_state = True
 
     while step <= total_steps:
         train_pose = []
