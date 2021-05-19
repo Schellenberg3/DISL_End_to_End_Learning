@@ -99,11 +99,11 @@ def get_order(amount: int, available: int, epochs=1) -> List[int]:
     return order
 
 
-def save_episodes(episodes: np.ndarray[Demo], data_set_path: str, start_episode=0) -> None:
+def save_episodes(episodes: np.ndarray, data_set_path: str, start_episode=0) -> None:
     """ Takes a list of demos/episodes and saves them to disk under the
     data folder.
 
-    :param episodes:      A set of one or more RLBench demos
+    :param episodes:      An array of type RLBench Demos
     :param data_set_path: Path to the data set's root, usually the task's name
     :param start_episode: Offset to save at if there are existing demos
 
