@@ -9,6 +9,10 @@ from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Concatenate
 from tensorflow.keras.layers import Reshape
 
+from tensorflow.keras.losses import MeanSquaredError
+from tensorflow.keras.losses import CosineSimilarity
+from tensorflow.keras.losses import SparseCategoricalCrossentropy
+
 
 class NetworkBuilder(object):
     """ Creates network and saves metadata """
@@ -110,10 +114,14 @@ class NetworkBuilder(object):
         z = LSTM(128)(z)
         z = Dense(128, activation="relu")(z)
 
-        output_joints = Dense(7, activation="linear")(z)   # Joint values (e.g. angles or velocity), continuous
-        output_action = Dense(1, activation="linear")(z)   # Gripper action, categorical
-        output_target = Dense(3, activation="linear")(z)   # Target (e.g. a cup) Cartesian position, continuous
-        output_gripper = Dense(3, activation="linear")(z)  # Gripper Cartesian position, continuous
+        output_joints = Dense(7, activation="linear",
+                              name='output_joints')(z)   # Joint values (e.g. angles or velocity), continuous
+        output_action = Dense(1, activation="linear",
+                              name='output_action')(z)   # Gripper action, categorical
+        output_target = Dense(3, activation="linear",
+                              name='output_target')(z)   # Target (e.g. a cup) Cartesian position, continuous
+        output_gripper = Dense(3, activation="linear",
+                               name='output_gripper')(z)  # Gripper Cartesian position, continuous
 
         network = Model(inputs=[joint_model.input,
                                 grip_model.input,
@@ -124,10 +132,10 @@ class NetworkBuilder(object):
                                  output_gripper])
 
         network.compile(optimizer='adam',
-                        loss={'output_joint_angles': 'cosine_similarity',
-                              'output_gripper_state': 'sparse_categorical_crossentropy',
-                              'output_gripper_pose': 'mse',
-                              'output_target_pose': 'mse',
+                        loss={'output_joints': CosineSimilarity(),
+                              'output_action': SparseCategoricalCrossentropy(from_logits=False),
+                              'output_target': MeanSquaredError(),
+                              'output_gripper': MeanSquaredError(),
                               }
                         )
 
