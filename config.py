@@ -121,9 +121,11 @@ class EndToEndConfig:
         """
         pov = input('Please enter what camera point of view to use, front (default) or wrist: ') or 'front'
         if pov in ['front', 'Front', 'wrist', 'Wrist']:
-            return pov.lower()
+            pov = pov.lower()
+            print(f'[Info] Using {pov} point of view.')
+            return pov
         else:
-            print(f'[Warn] Input "{pov}" is not an option, will use default point of view: front')
+            print(f'[Warn] Input "{pov}" is not a supported option. Defaulting to front.')
             return 'front'
 
     @staticmethod
