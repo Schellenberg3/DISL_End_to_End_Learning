@@ -4,8 +4,6 @@ from rlbench.tasks import ReachTarget
 from utils.networks import NetworkBuilder
 from utils.utils import alpha_numeric_sort
 from utils.utils import split_data
-from utils.utils import split_data_4
-from utils.utils import split_data_4_v2
 from utils.utils import check_yes
 
 from tensorflow.keras import Model
@@ -127,16 +125,16 @@ class EndToEndConfig:
             print(f'[Warn] Input "{pov}" is not an option, will use default point of view: front')
             return 'front'
 
-    def get_new_network(self) -> Tuple[Model, str, Dict[str, int, bool]]:
+    def get_new_network(self) -> Tuple[Model, str, Dict]:
         """ Uses NetworkBuilder to generate a desired new network.
 
         :returns: compiled network, network's name, and network's metainformation
         """
 
         print('\nPlease enter the parameters for your network...')
-        deep = bool(input('Use deep networks for gripper and joint inputs (y/n): ')) or False
-        num_images = int(input('How many image should the network use as an input (default 4): ')) or 4
-        num_joints = int(input('How man joints does your robot have (default 7 for Panda): ')) or 7
+        deep = bool(input('Use deep networks for gripper and joint inputs (y/n): ') or False)
+        num_images = int(input('How many image should the network use as an input (default 4): ') or 4)
+        num_joints = int(input('How man joints does your robot have (default 7 for Panda): ') or 7)
 
         builder = NetworkBuilder(deep=deep,
                                  num_images=num_images,
