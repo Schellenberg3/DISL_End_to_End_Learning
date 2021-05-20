@@ -118,7 +118,7 @@ class EndToEndConfig:
 
         :return: Either "wrist" or "front"
         """
-        pov = input('Please enter what camera point of view to use, front (default) or wrist: ')
+        pov = input('Please enter what camera point of view to use, front (default) or wrist: ') or 'front'
         if pov in ['front', 'Front', 'wrist', 'Wrist']:
             return pov.lower()
         else:
@@ -132,9 +132,15 @@ class EndToEndConfig:
         """
 
         print('\nPlease enter the parameters for your network...')
-        deep = bool(input('Use deep networks for gripper and joint inputs (y/n): ') or False)
-        num_images = int(input('How many image should the network use as an input (default 4): ') or 4)
-        num_joints = int(input('How man joints does your robot have (default 7 for Panda): ') or 7)
+        deep = bool(input('Use deep networks for gripper and joint inputs (yes/no. Default no): ') or False)
+        option = '' if deep else 'not '
+        print(f'[Info] Network will {option}use deep networks for the gripper and joint inputs.')
+
+        num_images = int(input('\nHow many image should the network use as an input (default 4): ') or 4)
+        print(f'[Info] Network will accept {num_images} images as an input.')
+
+        num_joints = int(input('\nHow man joints does your robot have (default 7 for Panda): ') or 7)
+        print(f'[Info] Network will accept {num_joints} joint values as an input.')
 
         builder = NetworkBuilder(deep=deep,
                                  num_images=num_images,
@@ -308,7 +314,8 @@ class EndToEndConfig:
             test_num = int(input('Enter directory # for testing: '))
 
             if train_num == test_num:
-                print('\n[Warn] Testing and training on the same directory. This is not recommended.')
+                input('\n[Warn] Testing and training on the same directory. This is not recommended. '
+                      'Press enter to continue... ')
             elif train_num < 0 or test_num < 0:
                 exit('\n[ERROR] Selections must be greater than zero. Exiting program.')
 
@@ -361,20 +368,21 @@ class EndToEndConfig:
         """
         text = ['training', 'testing']
         amounts = [0, 0]
+        default = [-1, 0]
         available = [0, 0]
         for i, d in enumerate([train_dir, test_dir]):
             available[i] = len(listdir(d))
             print(f'\nThere are {available[i]} episodes available for {text[i]} at {d}')
-            to_use = int(input('Enter how many to use (or -1 for all): '))
+            to_use = int(input(f'Enter how many to use (or -1 for all. Default is {default[i]}): ') or default[i])
             if to_use > available[i] or to_use <= -1:
-                print(f'[Info] Using all {available[i]} {text[i]} episodes.')
                 to_use = available[i]
             amounts[i] = to_use
+            print(f'[Info] Using {amounts[i]} {text[i]} episodes.')
 
-        epochs = int(input('\nEnter how many epochs use: '))
+        epochs = int(input('\nEnter how many epochs use (default is 1): ') or 1)
         if epochs < 1:
-            print(f'[Info] Setting epochs to 1')
             epochs = 1
+        print(f'[Info] Training for {epochs} epoch')
 
         return amounts[0], available[0], amounts[1], available[1], epochs
 
