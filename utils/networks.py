@@ -116,8 +116,8 @@ class NetworkBuilder(object):
 
         output_joints = Dense(7, activation="linear",
                               name='output_joints')(z)   # Joint values (e.g. angles or velocity), continuous
-        output_action = Dense(1, activation="linear",
-                              name='output_action')(z)   # Gripper action, categorical
+        output_action = Dense(2, activation="linear",
+                              name='output_action')(z)   # Gripper action, categorical with two values: open or close
         output_target = Dense(3, activation="linear",
                               name='output_target')(z)   # Target (e.g. a cup) Cartesian position, continuous
         output_gripper = Dense(3, activation="linear",
