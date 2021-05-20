@@ -451,8 +451,8 @@ def step_images(image_list: List[np.ndarray], new_image: np.ndarray) -> List[np.
     :return: List of images for current step
     """
     for i in (range(len(image_list) - 1, 0, -1)):
-        image_list[i] = image_list[i - 1].copy()
-    image_list[0] = new_image.copy()
+        image_list[i] = image_list[i - 1]
+    image_list[0] = new_image
 
     return image_list
 
@@ -468,7 +468,7 @@ def blank_image_list(num_images: int) -> List[np.ndarray]:
     images = []
     blank_image = np.zeros((128, 128, 4))
     for i in range(num_images):
-        images.append(blank_image.copy())
+        images.append(blank_image)
     return images
 
 
