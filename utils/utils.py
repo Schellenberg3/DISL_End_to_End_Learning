@@ -11,6 +11,7 @@ from os import listdir
 
 from typing import List
 from typing import Tuple
+from typing import Union
 
 from PIL import Image
 
@@ -382,20 +383,35 @@ def load_data(path: str, example_num: int, obs_config: ObservationConfig) -> Dem
     return obs
 
 
-def format_data(episode: Demo) -> Demo:
+def format_data(episode: Demo, pov: Union[List[str], str]) -> Demo:
     """ Takes a demo/episode loaded from disk and normalizes the images to
     a range of [0,1]. Also scales the joint positions from [-3.14, 3.14]
     to [0,1] to normalize.
 
     :param episode: Input episode
+    :param pov:     List of the POV to format, e.g. ['front', 'wrist', 'right_shoulder', 'right_shoulder']
+                    would format each image but ['front'] only formats the front image.
 
     :return: Same demonstration, now formatted
     """
+
+    if type(pov) == str:
+        pov = [pov]
+
+    front = True if 'front' in pov else False
+    wrist = True if 'wrist' in pov else False
+    left_shoulder = True if 'left_shoulder' in pov else False
+    right_shoulder = True if 'right_shoulder' in pov else False
+
     for step in range(len(episode)):
-        episode[step].front_rgb = episode[step].front_rgb / 255
-        episode[step].left_shoulder_rgb = episode[step].left_shoulder_rgb / 255
-        episode[step].right_shoulder_rgb = episode[step].right_shoulder_rgb / 255
-        episode[step].wrist_rgb = episode[step].wrist_rgb / 255
+        if front:
+            episode[step].front_rgb = episode[step].front_rgb / 255
+        if left_shoulder:
+            episode[step].left_shoulder_rgb = episode[step].left_shoulder_rgb / 255
+        if right_shoulder:
+            episode[step].right_shoulder_rgb = episode[step].right_shoulder_rgb / 255
+        if wrist:
+            episode[step].wrist_rgb = episode[step].wrist_rgb / 255
 
         episode[step].joint_positions = scale_pose(episode[step].joint_positions,
                                                    old_min=-3.14,
