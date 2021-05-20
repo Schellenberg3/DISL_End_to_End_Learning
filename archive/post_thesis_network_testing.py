@@ -112,13 +112,13 @@ keras.utils.plot_model(model, "post_thesis_network_testing_model.png", show_shap
 
 print("\n---> Finished compiling the combined model.\n")
 
-# model.save('saved_model/compile_demo')
+model.save('saved_model/compile_demo')
 model.summary()
 
 # print("\n---> Saved the combined model.\n")
 
-# del model
+del model
 
-# model = keras.models.load_model('saved_model/compile_demo')
+model = keras.models.load_model('saved_model/compile_demo')
 
-# print("\n---> Loaded a saved model.\n")
+print("\n---> Loaded a saved model.\n")
