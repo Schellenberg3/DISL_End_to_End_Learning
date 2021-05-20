@@ -112,7 +112,8 @@ class EndToEndConfig:
             print(f'[Warn] Unable to infer networks point of view.')
             return self.get_pov_from_user()
 
-    def get_pov_from_user(self) -> str:
+    @staticmethod
+    def get_pov_from_user() -> str:
         """ If point of view cannot be inferred from the network's name
         this prompts the user to select which camera view to use.
 
@@ -125,7 +126,8 @@ class EndToEndConfig:
             print(f'[Warn] Input "{pov}" is not an option, will use default point of view: front')
             return 'front'
 
-    def get_new_network(self) -> Tuple[Model, str, Dict]:
+    @staticmethod
+    def get_new_network() -> Tuple[Model, str, Dict]:
         """ Uses NetworkBuilder to generate a desired new network.
 
         :returns: compiled network, network's name, and network's metainformation
@@ -151,7 +153,6 @@ class EndToEndConfig:
         network = builder.get_network()
 
         return network, name, info
-
 
     def list_trained_networks(self) -> None:
         """ Prints a numbered list of all trained networks in the network
@@ -357,7 +358,8 @@ class EndToEndConfig:
         except (ValueError, IndexError) as error:
             exit('\n[ERROR] Selections must be integers and valid list indices. Exiting program')
 
-    def get_episode_amounts(self, train_dir: str, test_dir: str) -> Tuple[int, int, int, int, int]:
+    @staticmethod
+    def get_episode_amounts(train_dir: str, test_dir: str) -> Tuple[int, int, int, int, int]:
         """ Assists in getting and checking the number of training and testing demos to use
         and gets the number of training epochs. Also returns how many episodes are available in
         each directory.
