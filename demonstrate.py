@@ -2,31 +2,71 @@ from tensorflow.keras.models import load_model
 from rlbench.environment import Environment
 from rlbench.action_modes import ArmActionMode, ActionMode
 from rlbench.observation_config import ObservationConfig
+from rlbench.backend.observation import Observation
 from rlbench import DomainRandomizationEnvironment
 from rlbench import RandomizeEvery
 from rlbench import VisualRandomizationConfig
 from utils.utils import scale_pose
+from utils.utils import blank_image_list
+from utils.utils import step_images
+from os.path import join
 from config import EndToEndConfig
 import numpy as np
+import pickle
 
 
-if __name__ == '__main__':
+# todo: verify that the values are in the correct positions
+def get_gripper_action(gripper_prediction: np.ndarray) -> int:
+    """
+    Takes the categorical output for the gripper and returns a single integer representing
+    the decision the network made.
+
+    :param gripper_prediction: Size 2 array describing the networks categorical prediction
+                               for if the gripper should be open or closed.
+
+    :return: 1 if the gripper should be open or 0 if the gripper should be closed
+    """
+    if gripper_prediction[0] > gripper_prediction[1]:
+        return 0
+    else:
+        return 1
+
+
+def get_image(obs: Observation, pov: str) -> np.ndarray:
+    """
+    Gets depth image from an observation based on the point of view.
+
+    :param obs: RLBench observation at a given time step
+    :param pov: String of what point of view to return an image of
+
+    :return: 128x128x4 depth image as a numpy array.
+    """
+    if pov == "wrist":
+        image = np.dstack((obs.wrist_rgb, obs.wrist_depth))
+    elif pov == "front":
+        image = np.dstack((obs.wrist_rgb, obs.wrist_depth))
+    else:
+        image = np.dstack((obs.wrist_rgb, obs.wrist_depth))
+    return image
+
+
+def main():
     print('[Info] Starting demonstrate.py')
 
     config = EndToEndConfig()
 
     network_dir, network_name = config.get_trained_network()
     network = load_model(network_dir)
+
+    pickle_location = join(network_dir, 'network_info.pickle')
+    with open(pickle_location, 'rb') as handle:
+        network_info = pickle.load(handle)
+
+    num_images = network_info['num_images']
+
     print(f'\n[Info] Finished loading the network, {network_name}.')
 
     parsed_network_name = network_name.split('_')
-
-    if 'pv4' in parsed_network_name or 'rnn-pv4' in parsed_network_name:
-        print(f'\n[Info] Detected that the network uses 4 images. '
-              f'Will structure inputs accordingly')
-        four_deep = True
-    else:
-        four_deep = False
 
     pov = config.get_pov_from_name(parsed_network_name)
 
@@ -58,48 +98,44 @@ if __name__ == '__main__':
 
     evaluation_steps = num_demonstrations * demonstration_episode_length
 
-    blank_image = np.zeros((128, 128, 4))
-    image_t0 = blank_image.copy()
-    image_t1 = blank_image.copy()
-    image_t2 = blank_image.copy()
-    image_t3 = blank_image.copy()
+    image_list = blank_image_list(num_images)
 
     obs = None
     for i in range(evaluation_steps):
         if i % demonstration_episode_length == 0:  # e.g. we're starting a new demonstration
             descriptions, obs = task.reset()
+            image_list = blank_image_list(num_images)
             print(f"[Info] Task reset: on episode {int(1+(i/demonstration_episode_length))} "
                   f"of {int(evaluation_steps / demonstration_episode_length)}")
 
-        if pov == "wrist":
-            image = np.dstack((obs.wrist_rgb, obs.wrist_depth))
-        elif pov == "front":
-            image = np.dstack((obs.wrist_rgb, obs.wrist_depth))
-        else:
-            image = np.dstack((obs.wrist_rgb, obs.wrist_depth))
+        image = get_image(obs, pov)
 
-        if not four_deep:
-            pass
-        else:
-            image_t3 = image_t2.copy()
-            image_t2 = image_t1.copy()
-            image_t1 = image_t0.copy()
-            image_t0 = image.copy()
-            image = np.dstack((image_t0,
-                               image_t1,
-                               image_t2,
-                               image_t3,))
+        image_list = step_images(image_list, image)
 
-        image = np.expand_dims(image, 0)
-        state = np.expand_dims(np.append(obs.joint_positions, obs.gripper_open), 0)
+        image_input = np.expand_dims(np.dstack(image_list), 0)
+        gripper_input = np.expand_dims(obs.gripper_open, 0)
+        joints_input = np.expand_dims(obs.joint_positions, 0)
 
-        pred = network.predict(x=[state, image]).flatten()
+        prediction = network.predict(x=[joints_input, gripper_input, image_input])
 
-        joint_pose = scale_pose(pred[:-1])
-        gripper = pred[-1]
-        action = np.append(joint_pose, gripper)
+        joint_action = scale_pose(prediction[0].flatten())
+        gripper_action = get_gripper_action(prediction[1].flatten())  # How do we select which one?
 
+        target_estimation = prediction[2].flatten()
+        try:
+            target_actual = task._task.cup.get_pose()
+        except NameError:
+            target_actual = np.array([np.inf, np.inf, np.inf])
+
+        gripper_estimation = prediction[3].flatten()
+        gripper_actual = obs.gripper_pose
+
+        action = np.append(joint_action, gripper_action)
         obs, reward, terminate = task.step(action)
 
     env.shutdown()
     print(f'[Info] Successfully exiting program.')
+
+
+if __name__ == '__main__':
+    main()
