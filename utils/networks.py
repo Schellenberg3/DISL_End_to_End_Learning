@@ -114,7 +114,7 @@ class NetworkBuilder(object):
         z = LSTM(128)(z)
         z = Dense(128, activation="relu")(z)
 
-        output_joints = Dense(7, activation="linear",
+        output_joints = Dense(self._num_joints, activation="linear",
                               name='output_joints')(z)   # Joint values (e.g. angles or velocity), continuous
         output_action = Dense(2, activation="linear",
                               name='output_action')(z)   # Gripper action, categorical with two values: open or close
