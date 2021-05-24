@@ -238,7 +238,6 @@ def train(network: Model,
     print(f'[Info] Finished training model. Training took {training_time}.')
 
     network.save(network_save_dir)
-    plot_model(network, join(network_save_dir, "network.png"), show_shapes=True)
 
     if not prev_train_performance:  # If it is not an existing network we want to save its info now
         save_info_at = join(network_save_dir, 'network_info.pickle')
@@ -253,6 +252,12 @@ def train(network: Model,
                          test_dir=test_dir,
                          test_amount=test_amount,
                          test_available=test_available)
+
+    try:
+        plot_model(network, join(network_save_dir, "network.png"), show_shapes=True)
+    except ImportError:
+        print(f"\n[Warn] Could not print network image. You must install pydot (pip install pydot) and "
+              f"install graphviz (see instructions at https://graphviz.gitlab.io/download/) for plot_model/model_to_dot to work")
 
     print(f'\n[Info] Successfully exiting program.')
 
