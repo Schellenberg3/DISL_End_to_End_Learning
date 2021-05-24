@@ -499,8 +499,6 @@ def split_data(episode: Demo, num_images: int = 4, pov: str = 'front') -> \
     label_gripper = []  # True position of the robot's gripper
 
     for step in range(len(episode)):
-
-
         if pov == 'wrist':
             image = np.dstack((episode[step].wrist_rgb,
                                episode[step].wrist_depth))
