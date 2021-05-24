@@ -41,7 +41,6 @@ class NetworkBuilder(object):
         self._rand = rand
 
         self._name = None
-        self._split = None
 
         self.network = self._build_and_compile_network()
 
@@ -178,10 +177,8 @@ class NetworkBuilder(object):
         jg_deep_v4  ->  Joint and gripper have deep layers and CNN accepts 4 images
         jg_v7       ->  Joint and gripper pass through and CNN accepts 7 images
         """
-        if self._name:
-            return self._name
-        else:
-            raise RuntimeError('Network must be built before it has a name')
+        return self._name
+
 
     def get_network(self) -> Model:
         """
