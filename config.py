@@ -137,6 +137,7 @@ class EndToEndConfig:
 
         print('\nPlease enter the parameters for your network...')
         deep = bool(input('Use deep networks for gripper and joint inputs (yes/no. Default no): ') or False)
+        deep = False if deep != 'yes' else True
         option = '' if deep else 'not '
         print(f'[Info] Network will {option}use deep networks for the gripper and joint inputs.')
 
