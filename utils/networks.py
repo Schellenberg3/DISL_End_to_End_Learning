@@ -16,6 +16,8 @@ from tensorflow.keras.losses import SparseCategoricalCrossentropy
 from tensorflow.keras.metrics import RootMeanSquaredError
 from tensorflow.keras.metrics import SparseCategoricalAccuracy
 
+from network_info import NetworkInfo
+
 
 class NetworkBuilder(object):
     """ Creates network and saves metadata """
@@ -186,19 +188,21 @@ class NetworkBuilder(object):
         """
         return self.network
 
-    def get_metainfo(self) -> dict:
+    def get_metainfo(self) -> NetworkInfo:
         """
         Returns dictionary with meta information about the network. Information is encoded in the
         name too but this makes it simpler to access.
         """
-        info = {'network_name': self._name,
-                'num_images': self._num_images,
-                'num_joints': self._num_joints,
-                'deep': self._deep,
-                'rand': self._rand,
-                'pov': self._pov,
-                'task_name': self._task,
-                }
+        info = NetworkInfo()
+
+        info.name = self.get_name()
+        info.deep = self._deep
+        info.num_joints = self._num_joints
+        info.num_images = self._num_images
+
+        info.randomized = self._rand
+        info.pov = self._pov
+
         return info
 
 
