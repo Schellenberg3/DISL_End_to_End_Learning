@@ -13,6 +13,9 @@ from tensorflow.keras.losses import MeanSquaredError
 from tensorflow.keras.losses import CosineSimilarity
 from tensorflow.keras.losses import SparseCategoricalCrossentropy
 
+from tensorflow.keras.metrics import RootMeanSquaredError
+from tensorflow.keras.metrics import SparseCategoricalAccuracy
+
 
 class NetworkBuilder(object):
     """ Creates network and saves metadata """
@@ -136,7 +139,12 @@ class NetworkBuilder(object):
                               'output_action': SparseCategoricalCrossentropy(from_logits=False),
                               'output_target': MeanSquaredError(),
                               'output_gripper': MeanSquaredError(),
-                              }
+                              },
+                        metrics={'output_joints': RootMeanSquaredError(),
+                                 'output_action': SparseCategoricalAccuracy(),
+                                 'output_target': RootMeanSquaredError(),
+                                 'output_gripper': RootMeanSquaredError(),
+                                 },
                         )
 
         name = [f'j{self._num_joints}g']
