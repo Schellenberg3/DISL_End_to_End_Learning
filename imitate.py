@@ -30,23 +30,13 @@ def train_new(config: EndToEndConfig) -> None:
 
     train_dir, test_dir = config.get_train_test_directories()
 
-    episode_info = config.get_episode_amounts(train_dir, test_dir)
+    training_info = config.get_episode_amounts(train_dir, test_dir)
 
-    task_name, _ = config.get_task_from_name(train_dir.split('/'))
-    print()  # to maintain spacing todo: FIX SPACING
-
-    pov = config.get_pov_from_user()
-
-    network, network_name, network_info = config.get_new_network()
+    network, network_name, network_info = config.get_new_network(train_dir=train_dir)
 
     train(network=network,
           network_info=network_info,
-          train_dir=train_dir,
-          test_dir=test_dir,
-          episode_info=episode_info,
-          pov=pov,
-          network_name=network_name,
-          task_name=task_name,
+          training_info=training_info,
           save_root=config.network_root)
 
 
@@ -56,6 +46,7 @@ def train_existing(config: EndToEndConfig) -> None:
     network_dir, network_name = config.get_trained_network()
     parsed_name = network_name.split('_')
 
+    # todo: consider changing or renaming this... Move info to the pickle?
     network_info = config.get_info_from_network_name(parsed_name)
 
     pov = network_info[0]
@@ -103,53 +94,55 @@ def train_existing(config: EndToEndConfig) -> None:
 
 def train(network: Model,
           network_info: Dict,
-          train_dir: str,
-          test_dir: str,
-          episode_info: Tuple[int, int, int, int, int],
-          pov: str,
-          network_name: str,
-          task_name: str,
+          training_info: Dict,
           save_root: str,
           prev_train_performance: np.ndarray = None,
           prev_epoch: int = 0,
           prev_max_step: int = 0,
           ):
 
-    # todo: better labels for what each of these pieces of info before the training loop is for
-    train_amount = episode_info[0]
-    train_available = episode_info[1]
+    #####################################################
+    # Get information related to the dataset / training #
+    #####################################################
+    train_dir = training_info['train_dir']
+    train_amount = training_info['train_amount']
+    train_available = training_info['train_available']
 
-    test_amount = episode_info[2]
-    test_available = episode_info[3]
+    epochs = training_info['epochs']
 
-    epochs = episode_info[4]
+    train_order = get_order(train_amount, train_available, epochs)
 
+    ##########################################
+    # Get information related to the network #
+    ##########################################
     num_images = network_info['num_images']
+    pov = network_info['pov']
+    network_name = network_info['network_name']
 
-    save_network_as = f'{network_name}_{task_name}_{pov}_{train_amount}_by{epochs + prev_epoch}'
+    save_network_as = f'{network_name}_{train_amount}_by{epochs + prev_epoch}'
     network_save_dir = join(save_root,
                             'imitation',
                             save_network_as)
 
     check_if_network_exists(network_save_dir)
 
-    print(f'\n[Info] Pre-training summary: ')
-    print(f'Will train with {train_amount} episodes over {epochs} '
-          f'Training episodes will be pulled from: {train_dir}\n'
-          f'The network will be saved at: {network_save_dir}')
+    #####################################
+    # RLBench settings for loading data #
+    #####################################
+    obs_config = ObservationConfig()
+    obs_config.task_low_dim_state = True
 
-    input('\nReady to begin training. Press enter to proceed...')
-
-    train_order = get_order(train_amount, train_available, epochs)
-
-    start_train = time.perf_counter()
-
-    step = 0
+    #########################################################
+    # Information used by TensorFlow / in the training loop #
+    #########################################################
     total_steps = len(train_order) - 1
+    step = 0
+
+    i = 0  # Counter for number of image
+
     display_every = int(np.ceil(len(train_order) / 100))
 
     train_performance = []
-    i = 0
 
     # How many episodes should the network see before back propagation
     episodes_per_update = 2
@@ -158,10 +151,20 @@ def train(network: Model,
                                           save_weights_only=False,
                                           save_freq=100_000_000)
 
-    obs_config = ObservationConfig()
-    obs_config.task_low_dim_state = True
-
     memory_percent_threshold = 70
+
+    #################
+    # Training loop #
+    #################
+
+    print(f'\n[Info] Pre-training summary: ')
+    print(f'Will train with {train_amount} episodes over {epochs} '
+          f'Training episodes will be pulled from: {train_dir}\n'
+          f'The network will be saved at: {network_save_dir}')
+
+    input('\nReady to begin training. Press enter to proceed...')
+
+    start_train = time.perf_counter()
 
     while step <= total_steps:
         train_angles = []
@@ -244,14 +247,11 @@ def train(network: Model,
         with open(save_info_at, 'wb') as handle:
             pickle.dump(network_info, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-    if test_amount > 0:
+    if training_info['test_amount'] > 0:
         evaluate_network(network=network,
                          network_save_dir=network_save_dir,
                          obs_config=obs_config,
-                         pov=pov,
-                         test_dir=test_dir,
-                         test_amount=test_amount,
-                         test_available=test_available)
+                         test_info=training_info)
 
     try:
         plot_model(network, join(network_save_dir, "network.png"), show_shapes=True)
@@ -282,7 +282,14 @@ def free_memory(threshold: Union[int, None] = None) -> None:
 
 # Todo: implement a new evaluation method for multiple steps
 #       csv file with new lines added on each call?
-def evaluate_network(network, network_save_dir, obs_config, pov, test_dir, test_amount, test_available):
+def evaluate_network(network, network_save_dir, obs_config, test_info):
+
+    test_dir = test_info['test_dir']
+    test_amount = test_info['test_amount']
+    test_available = test_info['test_available']
+
+    pov = test_info['pov']
+
     print(f'\n[info] Beginning to evaluate the model on {test_amount} test demonstration episodes')
 
     test_order = get_order(test_amount, test_available)

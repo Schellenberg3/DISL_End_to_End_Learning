@@ -129,8 +129,19 @@ class EndToEndConfig:
             return 'front'
 
     @staticmethod
-    def get_new_network() -> Tuple[Model, str, Dict]:
+    def get_task_name(name: str):
+        name = name.split('_')
+        if len(name) == 1:
+            return name[0], False
+        elif 'randomized' in name:
+            return name[0], True
+        else:
+            raise Exception('Could not parse training directory name')
+
+    def get_new_network(self, train_dir: str) -> Tuple[Model, str, Dict]:
         """ Uses NetworkBuilder to generate a desired new network.
+
+        :param train_dir: String name of the training directory.
 
         :returns: compiled network, network's name, and network's metainformation
         """
@@ -138,8 +149,8 @@ class EndToEndConfig:
         print('\nPlease enter the parameters for your network...')
         deep = bool(input('Use deep networks for gripper and joint inputs (yes/no. Default no): ') or False)
         deep = False if deep != 'yes' else True
-        option = '' if deep else 'not '
-        print(f'[Info] Network will {option}use deep networks for the gripper and joint inputs.')
+        deep_option = '' if deep else 'not '
+        print(f'[Info] Network will {deep_option}use deep networks for the gripper and joint inputs.')
 
         num_images = int(input('\nHow many image should the network use as an input (default 4): ') or 4)
         print(f'[Info] Network will accept {num_images} images as an input.')
@@ -147,9 +158,23 @@ class EndToEndConfig:
         num_joints = int(input('\nHow man joints does your robot have (default 7 for Panda): ') or 7)
         print(f'[Info] Network will accept {num_joints} joint values as an input.')
 
-        builder = NetworkBuilder(deep=deep,
+        print('\nPlease enter some training parameters for the network...')
+        pov = self.get_pov_from_user()
+
+        train_dir = train_dir.split('/')
+        task, rand = self.get_task_name(train_dir[-3])
+
+        print(f"\n[Info] Detected that the dataset's task is {task}.")
+
+        rand_option = '' if rand else 'not '
+        print(f"\n[Info] Detected that the dataset is {deep_option}randomized.")
+
+        builder = NetworkBuilder(task=task,
+                                 deep=deep,
                                  num_images=num_images,
-                                 num_joints=num_joints)
+                                 num_joints=num_joints,
+                                 pov=pov,
+                                 rand=rand)
 
         name = builder.get_name()
         info = builder.get_metainfo()
@@ -362,14 +387,17 @@ class EndToEndConfig:
             exit('\n[ERROR] Selections must be integers and valid list indices. Exiting program')
 
     @staticmethod
-    def get_episode_amounts(train_dir: str, test_dir: str) -> Tuple[int, int, int, int, int]:
+    def get_episode_amounts(train_dir: str, test_dir: str) -> Dict:
         """ Assists in getting and checking the number of training and testing demos to use
         and gets the number of training epochs. Also returns how many episodes are available in
         each directory.
 
         :param train_dir: full directory to training episodes
         :param test_dir: full directory to testing episodes
-        :return: (train amount, train available, test amount, test available, epochs)
+
+        :return: Dict with keys for: train_dir, train amount, train available,
+                                     test_dir, test amount, test available,
+                                     and epochs
         """
         text = ['training', 'testing']
         amounts = [0, 0]
@@ -389,7 +417,17 @@ class EndToEndConfig:
             epochs = 1
         print(f'[Info] Training for {epochs} epoch')
 
-        return amounts[0], available[0], amounts[1], available[1], epochs
+        training_info = {
+            'train_dir': train_dir,
+            'train_amount': amounts[0],
+            'train_available': available[0],
+            'test_dir': test_dir,
+            'test_amount': amounts[1],
+            'test_available': available[1],
+            'epochs': epochs
+        }
+
+        return training_info
 
 
 if __name__ == '__main__':

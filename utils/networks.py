@@ -19,19 +19,26 @@ from tensorflow.keras.metrics import SparseCategoricalAccuracy
 
 class NetworkBuilder(object):
     """ Creates network and saves metadata """
-    def __init__(self, deep: bool = False, num_images: int = 4, num_joints: int = 7) -> None:
+    def __init__(self, task:str, deep: bool = False, num_images: int = 4, num_joints: int = 7,
+                 pov: str = 'front', rand: bool = False) -> None:
         """
         Takes users parameters for a network to create and compile the desired network.
 
+        :param task:       String name of the task the network will be trained on
         :param deep:       True := use dense layers in the gripper and joint network.
                            False := pass gripper and joint values through to combined model
         :param num_images: Number of images for the CNN to accept as an input
         :param num_joints: Adjusts joint input to match the number of joints the robot has. The default (7)
                            matches the Franka Panda. But other robots (like the UR5) have 6 or fewer joints.
+        :param pov:        Point of view that the network will be trained for
+        :param rand:       If the network is trained on randomized data
         """
+        self._task = task
         self._deep = deep
         self._num_images = num_images
         self._num_joints = num_joints
+        self._pov = pov
+        self._rand = rand
 
         self._name = None
         self._split = None
@@ -151,6 +158,10 @@ class NetworkBuilder(object):
         if self._deep:
             name.append(f'deep')
         name.append(f'v{self._num_images}')
+        name.append(f'{self._pov}')
+        if self._rand:
+            name.append(f'rand')
+        name.append(f'{self._task}')
         self._name = '_'.join(name)
 
         return network
@@ -183,10 +194,14 @@ class NetworkBuilder(object):
         Returns dictionary with meta information about the network. Information is encoded in the
         name too but this makes it simpler to access.
         """
-        info = {'name': self._name,
+        info = {'network_name': self._name,
                 'num_images': self._num_images,
                 'num_joints': self._num_joints,
-                'deep': self._deep}
+                'deep': self._deep,
+                'rand': self._rand,
+                'pov': self._pov,
+                'task_name': self._task,
+                }
         return info
 
 
