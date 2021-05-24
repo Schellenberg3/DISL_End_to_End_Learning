@@ -499,8 +499,7 @@ def split_data(episode: Demo, num_images: int = 4, pov: str = 'front') -> \
     label_gripper = []  # True position of the robot's gripper
 
     for step in range(len(episode)):
-        angles.append(episode[step].joint_positions)
-        action.append(episode[step].gripper_open)
+
 
         if pov == 'wrist':
             image = np.dstack((episode[step].wrist_rgb,
@@ -513,21 +512,32 @@ def split_data(episode: Demo, num_images: int = 4, pov: str = 'front') -> \
                                  new_image=image)
 
         image_stack = np.dstack(image_list)
-        images.append(image_stack)
 
+        #########################################################
+        # Inputs                                                #
+        # - Current image set, gripper action, and joint angles #
+        #########################################################
+
+        images.append(image_stack)
+        angles.append(episode[step].joint_positions)
+        action.append(episode[step].gripper_open)
+
+        ##################################################
+        # Labels                                         #
+        # - Current target position and gripper position #
+        # - Next joint angles and gripper action         #
+        ##################################################
+
+        # TODO: Possible future update to this section...
+        #       The dataset records (X,Y,Z,Qx,Qy,Qz,Qw) but we only want (X,Y,Z) for now
+        label_target.append(episode[step].task_low_dim_state[0][:3])
+        label_gripper.append(episode[step].task_low_dim_state[-1][:3])
         try:
             label_angles.append(episode[step + 1].joint_positions)
             label_action.append(episode[step + 1].gripper_open)
-
-            # TODO: Possible future update to this section...
-            #       The dataset records (X,Y,Z,Qx,Qy,Qz,Qw) but we only want (X,Y,Z) for now
-            label_target.append(episode[step + 1].task_low_dim_state[0][:3])
-            label_gripper.append(episode[step + 1].task_low_dim_state[-1][:3])
         except IndexError:
             label_angles.append(episode[step].joint_positions)
             label_action.append(episode[step].gripper_open)
-            label_target.append(episode[step].task_low_dim_state[0][:3])
-            label_gripper.append(episode[step].task_low_dim_state[-1][:3])
 
     inputs = (angles, action, images)
     labels = (label_angles, label_action, label_target, label_gripper)
