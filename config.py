@@ -1,6 +1,8 @@
 from rlbench.tasks import DislPickUpBlueCup
 from rlbench.tasks import ReachTarget
 
+from utils.training_info import TrainingInfo
+from utils.network_info import NetworkInfo
 from utils.networks import NetworkBuilder
 from utils.utils import alpha_numeric_sort
 from utils.utils import split_data
@@ -94,6 +96,7 @@ class EndToEndConfig:
         except (ValueError, IndexError) as e:
             exit('\n[ERROR] Selections must be integers and valid list indices. Exiting program')
 
+    # todo: consider removing
     def get_pov_from_name(self, parsed_name: List[str]) -> str:
         """ Takes a parsed name (from a saved network) and looks for information
         on the networks trained point of view. Returns this or asks for user
@@ -130,20 +133,22 @@ class EndToEndConfig:
 
     @staticmethod
     def get_task_name(name: str):
-        name = name.split('_')
-        if len(name) == 1:
-            return name[0], False
-        elif 'randomized' in name:
-            return name[0], True
+        split = name.split('_')
+        if len(split) == 1:
+            return split[0], False
+        elif 'randomized' in split:
+            return split[0], True
         else:
-            raise Exception('Could not parse training directory name')
+            raise Exception(f'Could not parse training directory name: {name}')
 
-    def get_new_network(self, train_dir: str) -> Tuple[Model, str, Dict]:
+    def get_new_network(self, training_info: TrainingInfo) -> Tuple[Model, NetworkInfo]:
         """ Uses NetworkBuilder to generate a desired new network.
 
-        :param train_dir: String name of the training directory.
+        :param training_info: String name of the training directory. This data is copied into the
+                              returned NetworkInfo object so the input parameter may be deleted after.
 
-        :returns: compiled network, network's name, and network's metainformation
+        :returns: compiled network and network's metainformation
+                  and training information as a NetworkInfo object
         """
 
         print('\nPlease enter the parameters for your network...')
@@ -161,13 +166,13 @@ class EndToEndConfig:
         print('\nPlease enter some training parameters for the network...')
         pov = self.get_pov_from_user()
 
-        train_dir = train_dir.split('/')
+        train_dir = training_info.train_dir.split('/')
         task, rand = self.get_task_name(train_dir[-3])
 
         print(f"\n[Info] Detected that the dataset's task is {task}.")
 
         rand_option = '' if rand else 'not '
-        print(f"\n[Info] Detected that the dataset is {deep_option}randomized.")
+        print(f"\n[Info] Detected that the dataset is {rand_option}randomized.")
 
         builder = NetworkBuilder(task=task,
                                  deep=deep,
@@ -176,11 +181,24 @@ class EndToEndConfig:
                                  pov=pov,
                                  rand=rand)
 
-        name = builder.get_name()
-        info = builder.get_metainfo()
         network = builder.get_network()
 
-        return network, name, info
+        # Part of the network_info is generated here
+        network_info = builder.get_metainfo()
+
+        # For the rest of the info we pass the training_info data through to network_info.
+        # After this all data is filled in network_info.
+        network_info.train_dir = training_info.train_dir
+        network_info.train_amount = training_info.train_amount
+        network_info.train_available = training_info.train_available
+
+        network_info.test_dir = training_info.test_dir
+        network_info.test_amount = training_info.test_amount
+        network_info.test_available = training_info.test_available
+
+        network_info.epochs_to_train = training_info.epochs
+
+        return network, network_info
 
     def list_trained_networks(self) -> None:
         """ Prints a numbered list of all trained networks in the network
@@ -203,12 +221,12 @@ class EndToEndConfig:
                 except NotADirectoryError:
                     pass
 
-    def get_trained_network(self) -> Tuple[str, str]:
+    def get_trained_network(self) -> str:
         """ Prints a numbered list of all trained networks in the network
         directory with the number of episodes they contain. User selects what
         directory/network to use and a path to the selection is returned
 
-        :return: (network_dir, network_name)
+        :return: network_dir
         """
         self.list_trained_networks()
 
@@ -219,87 +237,10 @@ class EndToEndConfig:
                 exit('\n[ERROR] Selections must be greater than zero. Exiting program.')
 
             network_dir = join(self.network_root, self._possible_network[network_num])
-            _, network_name = self._possible_network[network_num].split('/')
-            return network_dir, network_name
-        except (ValueError, IndexError) as e:
+            return network_dir
+        except (ValueError, IndexError):
             print(self._possible_network)
             exit('\n[ERROR] Selections must be integers and valid list indices. Exiting program')
-
-    def get_info_from_network_name(self, parsed_name: List[str]):
-        """ For retraining a network, this takes the name of a trained network and
-        returns the point of view ('front' or 'wrist'), what function to use to split
-        data, the task's training directory (testing directory is returned for consistency
-        but this should not be used in retraining), the RLBench class for the task, the
-        the amount of training episodes to uses (which is equal to the number available in the
-        training directory), the amount of training episodes available, the amount of testing episodes
-        to use (included for consistency but set to 0), the amount of testing episodes available
-        (included for consistency but set to 0), and the number of epochs previously trained over.
-
-        :param parsed_name: Network name split
-        :return: (Point of View, split function, task's name, RLBench task class,
-        training directory, testing directory, train amount, train available,
-        test amount, test available, previous epochs)
-        """
-
-        pov = self.get_pov_from_name(parsed_name)
-
-        task_name, task = self.get_task_from_name(parsed_name)
-
-        if 'rnn-pv4' in parsed_name or 'pv4' in parsed_name:
-            split = split_data_4
-            print(f'\n[Info] Detected that the network uses 4 images, will format images accordingly')
-        else:
-            split = split_data
-
-        epoch_info = [i for i in parsed_name if 'by' in i]
-        if len(epoch_info) != 1:
-            prev_epoch = int(input('\n[Warn] Could not infer the prior number of epochs.\n'
-                                   'Please enter the number of epochs previously trained over: '))
-        else:
-            prev_epoch = int(epoch_info[0][2:])
-            print(f'\n[Info] Detected that the network was trained over {prev_epoch} epochs')
-
-        tag = 'training'
-        tag += '_randomized' if 'rand' in parsed_name else ''
-
-        train_dir = join(self.data_root,
-                         tag,
-                         task_name,
-                         'variation0',
-                         'episodes')
-
-        if isdir(train_dir):
-            train_available = len(listdir(train_dir))
-            print(f'\n[Info] Automatically selected dataset: {join(tag, task_name)} \n'
-                  f'[Info] Retraining will use all {train_available} episodes.')
-
-            train_amount = train_available
-
-            print('\n[Info] No testing will be performed. Use evaluate.py instead.')
-
-            test_dir = train_dir
-            test_amount = 0
-            test_available = 0
-        else:
-            print(f'\n[Info] Failed to detect the correct training directory. Note that retraining '
-                  f'uses all available episodes and does not do a final evaluation.\n '
-                  f' Please select a directory: ')
-            train_dir, _ = self.get_train_test_directories()
-
-            train_available = len(listdir(train_dir))
-            print(f'\n[Info] Retraining will use all {train_available} episodes.')
-
-            train_amount = train_available
-
-            print('\n[Info] No testing will be performed. Use evaluate.py instead.')
-
-            test_dir = train_dir
-            test_amount = 0
-            test_available = 0
-
-        return pov, split, task_name, task, train_dir, test_dir,\
-            train_amount, train_available, \
-            test_amount, test_available, prev_epoch
 
     def list_data_set_directories(self) -> None:
         """ Prints a numbered list of all data sets in the data
@@ -352,7 +293,7 @@ class EndToEndConfig:
             test_dir = join(self.data_root, self.possible_data_set[test_num], 'variation0', 'episodes')
 
             return train_dir, test_dir
-        except (ValueError, IndexError) as e:
+        except (ValueError, IndexError):
             exit('\n[ERROR] Selections must be integers and valid list indices. Exiting program')
 
     def get_evaluate_directory(self) -> Tuple[str, int, int]:
@@ -383,22 +324,24 @@ class EndToEndConfig:
                 eval_amount = available
 
             return eval_dir, eval_amount, available
-        except (ValueError, IndexError) as error:
+        except (ValueError, IndexError):
             exit('\n[ERROR] Selections must be integers and valid list indices. Exiting program')
 
     @staticmethod
-    def get_episode_amounts(train_dir: str, test_dir: str) -> Dict:
+    def get_episode_amounts(train_dir: str, test_dir: str) -> TrainingInfo:
         """ Assists in getting and checking the number of training and testing demos to use
         and gets the number of training epochs. Also returns how many episodes are available in
         each directory.
 
         :param train_dir: full directory to training episodes
-        :param test_dir: full directory to testing episodes
+        :param test_dir:  full directory to testing episodes
 
-        :return: Dict with keys for: train_dir, train amount, train available,
-                                     test_dir, test amount, test available,
-                                     and epochs
+        :return: A TrainingInfo object with the number of epochs and the directories, amount, and avalable episodes
+                 for training and testing.
         """
+
+        info = TrainingInfo()
+
         text = ['training', 'testing']
         amounts = [0, 0]
         default = [-1, 0]
@@ -417,20 +360,27 @@ class EndToEndConfig:
             epochs = 1
         print(f'[Info] Training for {epochs} epoch')
 
-        training_info = {
-            'train_dir': train_dir,
-            'train_amount': amounts[0],
-            'train_available': available[0],
-            'test_dir': test_dir,
-            'test_amount': amounts[1],
-            'test_available': available[1],
-            'epochs': epochs
-        }
+        info.train_dir = train_dir
+        info.train_amount = amounts[0]
+        info.train_available = available[0]
 
-        return training_info
+        info.test_dir = test_dir
+        info.test_amount = amounts[1]
+        info.test_available = available[1]
+
+        info.epochs = epochs
+
+        # train_dir is 'data' / 'tag' + {'_randomized'} / 'task' / 'variation0' / episodes
+        #                                ^ iff randomized data
+        pared_name = train_dir.split('/')
+        info.task_name = pared_name[-3]
+        info.randomized = True if 'randomized' in pared_name[-4].split('_') else False
+
+        return info
 
 
 if __name__ == '__main__':
+    # Todo re-write this
     print('[Info] Starting config.py')
 
     e = EndToEndConfig()

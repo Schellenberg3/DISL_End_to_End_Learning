@@ -16,7 +16,11 @@ from tensorflow.keras.losses import SparseCategoricalCrossentropy
 from tensorflow.keras.metrics import RootMeanSquaredError
 from tensorflow.keras.metrics import SparseCategoricalAccuracy
 
-from network_info import NetworkInfo
+# Todo find a better way to handle these conditional imports
+try:
+    from utils.network_info import NetworkInfo
+except ModuleNotFoundError:
+    from network_info import NetworkInfo
 
 
 class NetworkBuilder(object):
@@ -181,7 +185,6 @@ class NetworkBuilder(object):
         """
         return self._name
 
-
     def get_network(self) -> Model:
         """
         Getter function for the compiled network
@@ -195,13 +198,15 @@ class NetworkBuilder(object):
         """
         info = NetworkInfo()
 
-        info.name = self.get_name()
+        info.network_name = self.get_name()
         info.deep = self._deep
         info.num_joints = self._num_joints
         info.num_images = self._num_images
 
         info.randomized = self._rand
         info.pov = self._pov
+
+        info.task_name = self._task
 
         return info
 
@@ -212,10 +217,12 @@ def main():
     num_images = int(input('How many image inputs: '))
     deep = input('Use deep networks for the gripper and joint branches (y/n): ')
     deep = True if deep == 'y' else False
+    task = input('Type the name of your task: ')
 
     builder = NetworkBuilder(deep=deep,
                              num_images=num_images,
-                             num_joints=num_joints)
+                             num_joints=num_joints,
+                             task=task)
 
     network = builder.get_network()
     name = builder.get_name()
@@ -223,7 +230,8 @@ def main():
 
     print(f'Network is: {network}')
     print(f'Network named: {name}')
-    print(f'Network meta information: {info}')
+    print(f'Network meta information... \n'
+          f'{info}')
 
 
 if __name__ == "__main__":

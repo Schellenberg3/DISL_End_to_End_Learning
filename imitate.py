@@ -1,3 +1,5 @@
+import os
+
 from rlbench.observation_config import ObservationConfig
 from tensorflow.keras.models import load_model
 from tensorflow.keras.callbacks import ModelCheckpoint
@@ -8,6 +10,8 @@ from utils.utils import format_data
 from utils.utils import check_yes
 from utils.utils import format_time
 from utils.utils import split_data
+from utils.training_info import TrainingInfo
+from utils.network_info import NetworkInfo
 from tensorflow.keras import Model
 from os.path import join
 from os import listdir
@@ -29,14 +33,12 @@ def train_new(config: EndToEndConfig) -> None:
     print(f'\n[Info] Training a new model')
 
     train_dir, test_dir = config.get_train_test_directories()
-
     training_info = config.get_episode_amounts(train_dir, test_dir)
 
-    network, network_name, network_info = config.get_new_network(train_dir=train_dir)
+    network, network_info = config.get_new_network(training_info=training_info)
 
     train(network=network,
           network_info=network_info,
-          training_info=training_info,
           save_root=config.network_root)
 
 
@@ -44,86 +46,55 @@ def train_existing(config: EndToEndConfig) -> None:
     print(f'\n[Info] Continuing the training of an existing model')
 
     network_dir, network_name = config.get_trained_network()
-    parsed_name = network_name.split('_')
 
-    # todo: consider changing or renaming this... Move info to the pickle?
-    network_info = config.get_info_from_network_name(parsed_name)
+    with open(join(network_dir, 'network_info.pickle'), 'rb') as f:
+        network_info = pickle.load(f)
 
-    pov = network_info[0]
-    split = network_info[1]
-    task_name = network_info[2]
-    task = network_info[3]
-    train_dir = network_info[4]
-    test_dir = network_info[5]
-    train_amount = network_info[6]
-    train_available = network_info[7]
-    test_amount = network_info[8]
-    test_available = network_info[9]
-    prev_epoch = network_info[10]
+    print('\n[Info] Retraining will not perform any evaluation. Use evaluate.py instead.')
+    network_info.test_amount = 0  # Ensure that this is zero.
 
-    episode_info = network_info[6:10]
+    print(f'\n[Info] Retraining will use {network_info.train_amount} episodes per epoch ')
 
-    epochs = int(input(f'\nHow many more epoch (at {prev_epoch} currently)'
-                       f' should the network be trained on (default is 1)? ')) or 1
-    epochs = 1 if epochs < 1 else epochs
-    print(f'Training the network for {epochs} additional epoch. ')
+    print(f'\n[Info] Retraining will use episodes from {network_info.train_dir}')
+
+    request = int(input(f'\nHow many more epoch (at {network_info.total_epochs} currently)'
+                        f' should the network be trained on (default is 1)? ') or 1)
+    network_info.epochs_to_train = 1 if request < 1 else request
+    print(f'Training the network for {network_info.epochs_to_train} additional epoch. ')
+
+    ep_in_train_dir = len(os.listdir(network_info.train_dir))
+    if network_info.train_amount != ep_in_train_dir:
+        retraining_warning(network_info.train_amount, ep_in_train_dir)
 
     network = load_model(network_dir)
 
-    pickle_location = join(network_dir, 'network_info.pickle')
-    with open(pickle_location, 'rb') as handle:
-        network_info = pickle.load(handle)
-
     # todo write method to save and load this info
     prev_train_performance = None
-    prev_max_step = 0
 
     train(network=network,
           network_info=network_info,
-          train_dir=train_dir,
-          test_dir=test_dir,
-          episode_info=episode_info,
-          pov=pov,
-          network_name=network_name,
-          task_name=task_name,
           save_root=config.network_root,
-          prev_train_performance=prev_train_performance,
-          prev_epoch=prev_epoch,
-          prev_max_step=prev_max_step)
+          prev_train_performance=prev_train_performance)
 
 
 def train(network: Model,
-          network_info: Dict,
-          training_info: Dict,
+          network_info: NetworkInfo,
           save_root: str,
-          prev_train_performance: np.ndarray = None,
-          prev_epoch: int = 0,
-          prev_max_step: int = 0,
-          ):
+          prev_train_performance: np.ndarray = None):
 
     #####################################################
     # Get information related to the dataset / training #
     #####################################################
-    train_dir = training_info['train_dir']
-    train_amount = training_info['train_amount']
-    train_available = training_info['train_available']
 
-    epochs = training_info['epochs']
-
-    train_order = get_order(train_amount, train_available, epochs)
 
     ##########################################
     # Get information related to the network #
     ##########################################
-    num_images = network_info['num_images']
-    pov = network_info['pov']
-    network_name = network_info['network_name']
+    network_info.prev_epochs = network_info.total_epochs
+    network_info.total_epochs += network_info.epochs_to_train
 
-    save_network_as = f'{network_name}_{train_amount}_by{epochs + prev_epoch}'
-    network_save_dir = join(save_root,
-                            'imitation',
-                            save_network_as)
-
+    save_network_as = f'{network_info.network_name}_{network_info.train_amount}_by{network_info.total_epochs}'
+    network_save_dir = join(save_root, 'imitation', save_network_as)
     check_if_network_exists(network_save_dir)
 
     #####################################
@@ -135,12 +106,15 @@ def train(network: Model,
     #########################################################
     # Information used by TensorFlow / in the training loop #
     #########################################################
-    total_steps = len(train_order) - 1
-    step = 0
+    train_order = get_order(network_info.train_amount,
+                            network_info.train_available,
+                            network_info.epochs_to_train)
+    total_episodes = len(train_order) - 1
+    episode_count = 0
 
-    i = 0  # Counter for number of image
+    steps = 0  # Counter for number of steps in each episode
 
-    display_every = int(np.ceil(len(train_order) / 100))
+    display_every = int(np.ceil((total_episodes + 1)/100))
 
     train_performance = []
 
@@ -156,17 +130,16 @@ def train(network: Model,
     #################
     # Training loop #
     #################
-
     print(f'\n[Info] Pre-training summary: ')
-    print(f'Will train with {train_amount} episodes over {epochs} '
-          f'Training episodes will be pulled from: {train_dir}\n'
+    print(f'Will train with {network_info.train_amount} episodes over {network_info.epochs_to_train} epochs. \n'
+          f'Training episodes will be pulled from: {network_info.train_dir}\n'
           f'The network will be saved at: {network_save_dir}')
 
     input('\nReady to begin training. Press enter to proceed...')
 
-    start_train = time.perf_counter()
+    start_time = time.perf_counter()
 
-    while step <= total_steps:
+    while episode_count <= total_episodes:
         train_angles = []
         train_action = []
         train_images = []
@@ -178,13 +151,13 @@ def train(network: Model,
 
         for episode in range(episodes_per_update):
             try:
-                inputs, labels = split_data(format_data(load_data(train_dir,
-                                                                  train_order[step],
+                inputs, labels = split_data(format_data(load_data(network_info.train_dir,
+                                                                  train_order[episode_count],
                                                                   obs_config),
-                                                        pov=pov
+                                                        pov=network_info.pov
                                                         ),
-                                            num_images=num_images,
-                                            pov=pov)
+                                            num_images=network_info.num_images,
+                                            pov=network_info.pov)
                 train_angles += inputs[0]
                 train_action += inputs[1]
                 train_images += inputs[2]
@@ -194,8 +167,8 @@ def train(network: Model,
                 label_target += labels[2]
                 label_gripper += labels[3]
 
-                i += len(inputs[0])
-                step += 1
+                steps += len(inputs[0])
+                episode_count += 1
             except (FileNotFoundError, IndexError) as E:
                 print(f'[Warn] Received {E}: Reached end of dataset. Using {episode} episodes per '
                       f'network update instead of the {episodes_per_update} usually used')
@@ -224,42 +197,64 @@ def train(network: Model,
         if virtual_memory().percent > memory_percent_threshold:
             free_memory(memory_percent_threshold)
 
-        if step % display_every == 0 or step == episodes_per_update:
-            h.history['steps'] = i + prev_max_step
-            train_performance.append(h.history)
-            print(f'[Info] {step / (total_steps + 1) * 100:3.1f}% Complete '
-                  f'{format_time((time.perf_counter() - start_train) * (total_steps - step + 1) / (step))} remaining. '
-                  f'Trained through episode {step - train_amount * int((step - 1) / train_amount)} of '
-                  f'{train_amount} in epoch {int((step - 1) / train_amount) + 1 + prev_epoch} of'
-                  f' {epochs + prev_epoch}.\n')
+        if episode_count % display_every == 0 or episode_count == episodes_per_update:
+            display_update(network_info=network_info,
+                           episode_count=episode_count,
+                           total_episodes=total_episodes,
+                           start_time=start_time)
 
     free_memory()
-    end_train = time.perf_counter()
 
-    training_time = format_time(end_train - start_train)
+    end_time = time.perf_counter()
+    training_time = format_time(end_time - start_time)
 
     print(f'[Info] Finished training model. Training took {training_time}.')
 
+    ####################
+    # Save the network #
+    ####################
     network.save(network_save_dir)
 
-    if not prev_train_performance:  # If it is not an existing network we want to save its info now
-        save_info_at = join(network_save_dir, 'network_info.pickle')
-        with open(save_info_at, 'wb') as handle:
-            pickle.dump(network_info, handle, protocol=pickle.HIGHEST_PROTOCOL)
+    ###################################
+    # Update network info and save it #
+    ###################################
+    save_info_at = join(network_save_dir, 'network_info.pickle')
+    with open(save_info_at, 'wb') as handle:
+        pickle.dump(network_info, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-    if training_info['test_amount'] > 0:
-        evaluate_network(network=network,
-                         network_save_dir=network_save_dir,
-                         obs_config=obs_config,
-                         test_info=training_info)
+    ####################
+    # Optional testing #
+    ####################
+    print(network_info.test_amount)
+    if network_info.test_amount > 0:
+        evaluate_network()
 
     try:
         plot_model(network, join(network_save_dir, "network.png"), show_shapes=True)
     except ImportError:
-        print(f"\n[Warn] Could not print network image. You must install pydot (pip install pydot) and "
-              f"install graphviz (see instructions at https://graphviz.gitlab.io/download/) for plot_model/model_to_dot to work")
+        print(f"\n[Warn] Could not print network image. You must install pydot (pip install pydot) "
+              f"and install graphviz (see instructions at https://graphviz.gitlab.io/download/) for "
+              f"plot_model/model_to_dot to work")
 
     print(f'\n[Info] Successfully exiting program.')
+
+
+def display_update(network_info: NetworkInfo, episode_count: int, start_time: float, total_episodes: int) -> None:
+    """
+    Prints to screen an update on the current training status.
+
+    :param network_info:   NetworkInfo object for the trained network
+    :param episode_count:  Total number of episodes (including repeats) that have been loaded from memory for training
+    :param start_time:     Time at which the network training began
+    :param total_episodes: Total number of episodes (including repeats) that will be loaded from memory for training
+    """
+    print(f'[Info] {episode_count / (total_episodes + 1) * 100:3.1f}% Complete '
+          f'{format_time((time.perf_counter() - start_time) * (total_episodes - episode_count + 1) / episode_count)} '
+          f'remaining. Trained through episode '
+          f'{episode_count - network_info.train_amount * int((episode_count - 1) / network_info.train_amount)} '
+          f'of {network_info.train_amount} in epoch '
+          f'{int((episode_count - 1) / network_info.train_amount) + 1 + network_info.prev_epochs} '
+          f'of {network_info.total_epochs}.\n')
 
 
 def free_memory(threshold: Union[int, None] = None) -> None:
@@ -279,6 +274,21 @@ def free_memory(threshold: Union[int, None] = None) -> None:
 
     print(msg)
 
+
+def retraining_warning(network_amount: int, ep_in_train_dir: int) -> None:
+    """
+    Called to warn that there is a different number of episodes in the training directory
+    than the network was previously trained with.
+
+    :param network_amount:  Number of episodes used by the network (usually from its NetworkInfo object)
+    :param ep_in_train_dir: Number of episodes in the training directory
+    """
+    input(f'\n[WARN] It seems that there are {ep_in_train_dir} episodes in the training directory '
+          f'and the network was trained on {network_amount} episodes previously. Using a '
+          f'dataset with different (new or removed) episodes than the one the network was previously trained with '
+          f'means the network will not see each episode equally. Each epoch may also consist of different episodes '
+          f'than the prior one. Doing this makes it difficult to quantify the training regime.\n'
+          f'If you still with to train in this manner, press enter to acknowledge the risk and continue... ')
 
 # Todo: implement a new evaluation method for multiple steps
 #       csv file with new lines added on each call?
