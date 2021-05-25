@@ -114,10 +114,15 @@ def main():
 
         image_input = np.expand_dims(np.dstack(image_list), 0)
         gripper_input = np.expand_dims(obs.gripper_open, 0)
+
+        # TODO: SCALE JOINT INPUT TO 0 TO 1 RANGE
+        #       HOW DID i FORGET TO DO THIS?
         joints_input = np.expand_dims(obs.joint_positions, 0)
 
         prediction = network.predict(x=[joints_input, gripper_input, image_input])
 
+        # TODO: SCALE JOINT INPUT TO -3.14 TO 3.14 RANGE
+        #       HOW DID i FORGET TO DO THIS?
         joint_action = scale_pose(prediction[0].flatten())
         gripper_action = get_gripper_action(prediction[1].flatten())  # How do we select which one?
 
