@@ -45,10 +45,20 @@ def train_new(config: EndToEndConfig) -> None:
 def train_existing(config: EndToEndConfig) -> None:
     print(f'\n[Info] Continuing the training of an existing model')
 
+    ###############################################################
+    # Get users selection and load it and its network information #
+    ###############################################################
+
     network_dir = config.get_trained_network()
 
     with open(join(network_dir, 'network_info.pickle'), 'rb') as f:
         network_info = pickle.load(f)
+
+    try:
+        prev_train_performance = np.loadtxt(join(network_dir, 'train_performance.csv'),
+                                            delimiter=",")
+    except FileNotFoundError:
+        prev_train_performance = None
 
     print('\n[Info] Retraining will not perform any evaluation. Use evaluate.py instead.')
     network_info.test_amount = 0  # Ensure that this is zero.
@@ -56,6 +66,10 @@ def train_existing(config: EndToEndConfig) -> None:
     print(f'\n[Info] Retraining will use {network_info.train_amount} episodes per epoch ')
 
     print(f'\n[Info] Retraining will use episodes from {network_info.train_dir}')
+
+    #####################################
+    # Get the parameters for retraining #
+    #####################################
 
     request = int(input(f'\nHow many more epoch (at {network_info.total_epochs} currently)'
                         f' should the network be trained on (default is 1)? ') or 1)
@@ -68,13 +82,6 @@ def train_existing(config: EndToEndConfig) -> None:
 
     network = load_model(network_dir)
 
-    try:
-        prev_train_performance = np.loadtxt(join(network_dir,
-                                                 'train_performance.csv'),
-                                            delimiter=",")
-    except FileNotFoundError:
-        prev_train_performance = None
-
     train(network=network,
           network_info=network_info,
           save_root=config.network_root,
@@ -85,15 +92,9 @@ def train(network: Model,
           network_info: NetworkInfo,
           save_root: str,
           prev_train_performance: np.ndarray = None):
-
-    #####################################################
-    # Get information related to the dataset / training #
-    #####################################################
-
-
-    ##########################################
-    # Get information related to the network #
-    ##########################################
+    ##################################################################################################
+    # Update network info before training and generate the new it will be saved as and the directory #
+    ##################################################################################################
     network_info.prev_epochs = network_info.total_epochs
     network_info.total_epochs += network_info.epochs_to_train
 
@@ -194,22 +195,14 @@ def train(network: Model,
                         callbacks=[checkpoint_callback]
                         )
 
-        print()
-        print()
-        print(h.history)
-        print()
-        print()
-
         if virtual_memory().percent > memory_percent_threshold:
             free_memory(memory_percent_threshold)
 
         if episode_count % display_every == 0 or episode_count == episodes_per_update:
             h.history['steps'] = [steps + prev_last_step]
             train_performance.append(h.history)
-            display_update(network_info=network_info,
-                           episode_count=episode_count,
-                           total_episodes=total_episodes,
-                           start_time=start_time)
+            display_update(network_info=network_info, episode_count=episode_count,
+                           total_episodes=total_episodes, start_time=start_time)
 
     free_memory()
 
@@ -223,9 +216,9 @@ def train(network: Model,
     ####################
     network.save(network_save_dir)
 
-    ###################################
-    # Update network info and save it #
-    ###################################
+    #####################################################################
+    # Save network info, training performance, and a graph of the model #
+    #####################################################################
     save_info_at = join(network_save_dir, 'network_info.pickle')
     with open(save_info_at, 'wb') as handle:
         pickle.dump(network_info, handle, protocol=pickle.HIGHEST_PROTOCOL)
@@ -234,18 +227,18 @@ def train(network: Model,
                            train_performance=train_performance,
                            prev_train_performance=prev_train_performance)
 
-    ####################
-    # Optional testing #
-    ####################
-    if network_info.test_amount > 0:
-        evaluate_network()
-
     try:
         plot_model(network, join(network_save_dir, "network.png"), show_shapes=True)
     except ImportError:
         print(f"\n[Warn] Could not print network image. You must install pydot (pip install pydot) "
               f"and install graphviz (see instructions at https://graphviz.gitlab.io/download/) for "
               f"plot_model/model_to_dot to work")
+
+    ######################################
+    # Optionally do some testing testing #
+    ######################################
+    if network_info.test_amount > 0:
+        evaluate_network()
 
     print(f'\n[Info] Successfully exiting program.')
 
