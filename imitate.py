@@ -15,6 +15,7 @@ from utils.network_info import NetworkInfo
 from tensorflow.keras import Model
 from os.path import join
 from os import listdir
+from evaluate import evaluate_network
 from typing import Tuple
 from typing import List
 from typing import Dict
@@ -238,7 +239,10 @@ def train(network: Model,
     # Optionally do some testing testing #
     ######################################
     if network_info.test_amount > 0:
-        evaluate_network()
+        evaluate_network(network=network,
+                         network_info=network_info,
+                         network_save_dir=network_save_dir,
+                         obs_config=obs_config)
 
     print(f'\n[Info] Successfully exiting program.')
 
@@ -331,49 +335,6 @@ def retraining_warning(network_amount: int, ep_in_train_dir: int) -> None:
           f'means the network will not see each episode equally. Each epoch may also consist of different episodes '
           f'than the prior one. Doing this makes it difficult to quantify the training regime.\n'
           f'If you still with to train in this manner, press enter to acknowledge the risk and continue... ')
-
-# Todo: implement a new evaluation method for multiple steps
-#       csv file with new lines added on each call?
-def evaluate_network(network, network_save_dir, obs_config, test_info):
-
-    test_dir = test_info['test_dir']
-    test_amount = test_info['test_amount']
-    test_available = test_info['test_available']
-
-    pov = test_info['pov']
-
-    print(f'\n[info] Beginning to evaluate the model on {test_amount} test demonstration episodes')
-
-    test_order = get_order(test_amount, test_available)
-
-    for episode in test_order:
-        inputs, labels = split_data(format_data(load_data(test_dir,
-                                                          episode,
-                                                          obs_config),
-                                                pov=pov),
-                                    pov=pov)
-
-        train_angles = inputs[0]
-        train_action = inputs[1]
-        train_images = inputs[2]
-
-        label_angles = labels[0]
-        label_action = labels[1]
-        label_target = labels[2]
-        label_gripper = labels[3]
-
-        loss = network.evaluate(x=[np.asarray(train_angles),
-                                   np.asarray(train_action),
-                                   np.asarray(train_images)],
-                                y=[np.asarray(label_angles),
-                                   np.asarray(label_action),
-                                   np.asarray(label_target),
-                                   np.asarray(label_gripper)],
-                                verbose=1,
-                                batch_size=len(train_angles))
-
-    with open(f'{network_save_dir}/model_summary.txt', "w") as f:
-        f.write(f'TODO: Implement this!')
 
 
 def check_if_network_exists(network_save_dir: str) -> None:
