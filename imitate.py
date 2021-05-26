@@ -45,7 +45,7 @@ def train_new(config: EndToEndConfig) -> None:
 def train_existing(config: EndToEndConfig) -> None:
     print(f'\n[Info] Continuing the training of an existing model')
 
-    network_dir, network_name = config.get_trained_network()
+    network_dir = config.get_trained_network()
 
     with open(join(network_dir, 'network_info.pickle'), 'rb') as f:
         network_info = pickle.load(f)
@@ -68,8 +68,12 @@ def train_existing(config: EndToEndConfig) -> None:
 
     network = load_model(network_dir)
 
-    # todo write method to save and load this info
-    prev_train_performance = None
+    try:
+        prev_train_performance = np.loadtxt(join(network_dir,
+                                                 'train_performance.csv'),
+                                            delimiter=",")
+    except FileNotFoundError:
+        prev_train_performance = None
 
     train(network=network,
           network_info=network_info,
@@ -117,6 +121,8 @@ def train(network: Model,
     display_every = int(np.ceil((total_episodes + 1)/100))
 
     train_performance = []
+
+    prev_last_step = prev_train_performance[-1, -1] if prev_train_performance is not None else 0
 
     # How many episodes should the network see before back propagation
     episodes_per_update = 2
@@ -198,6 +204,8 @@ def train(network: Model,
             free_memory(memory_percent_threshold)
 
         if episode_count % display_every == 0 or episode_count == episodes_per_update:
+            h.history['steps'] = [steps + prev_last_step]
+            train_performance.append(h.history)
             display_update(network_info=network_info,
                            episode_count=episode_count,
                            total_episodes=total_episodes,
@@ -222,10 +230,13 @@ def train(network: Model,
     with open(save_info_at, 'wb') as handle:
         pickle.dump(network_info, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
+    save_train_performance(network_save_dir=network_save_dir,
+                           train_performance=train_performance,
+                           prev_train_performance=prev_train_performance)
+
     ####################
     # Optional testing #
     ####################
-    print(network_info.test_amount)
     if network_info.test_amount > 0:
         evaluate_network()
 
@@ -237,6 +248,44 @@ def train(network: Model,
               f"plot_model/model_to_dot to work")
 
     print(f'\n[Info] Successfully exiting program.')
+
+
+def save_train_performance(network_save_dir: str,
+                           train_performance: List[Dict],
+                           prev_train_performance: np.ndarray = None) -> None:
+    """
+    Saves the training performance as a CSV file. Assumes each output has at most one loss
+    and one metric. History is saved as train_performance.csv in the network directory.
+
+    :param network_save_dir:       Root directory for the network the data is associated with
+    :param train_performance:      Performance from the most recent round of training
+    :param prev_train_performance: If retraining this is a array with the data from previous
+                                   training that has been loaded from memory.
+
+    """
+    train_array = []
+    for step in train_performance:
+        data = np.array(list(step.items()), dtype='object')
+
+        # Need to reshape since TF returns losses/metrics as a list
+        # we assume there is only one element. Using multiple metrics
+        # or losses on one output will break this step.
+        array = np.array(data[:, 1].tolist()).astype('float')
+        array = np.reshape(array, array.shape[0])
+
+        train_array.append(array)
+
+    train_array = np.array(train_array)
+
+    if prev_train_performance is not None:
+        train_array = np.vstack((prev_train_performance, train_array))
+
+    header = ['loss', 'joint MSE loss', 'action sparse entropy loss', 'target MSE loss',
+              'gripper MSE loss', 'joint RMS', 'action accuracy', 'target RMS', 'gripper RMS', 'steps']
+    np.savetxt(join(network_save_dir, 'train_performance.csv'),
+               train_array,
+               delimiter=",",
+               header=', '.join(header))
 
 
 def display_update(network_info: NetworkInfo, episode_count: int, start_time: float, total_episodes: int) -> None:
