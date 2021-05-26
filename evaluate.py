@@ -54,6 +54,7 @@ def evaluate_network(network: Model, network_info: NetworkInfo,
                                                           episode,
                                                           obs_config),
                                                 pov=network_info.pov),
+                                    num_images=network_info.num_images,
                                     pov=network_info.pov)
 
         train_angles = inputs[0]
