@@ -1,7 +1,9 @@
 from config import EndToEndConfig
+
 from os.path import join
 from os import listdir
 from os import renames
+
 import numpy as np
 import time
 

@@ -1,33 +1,32 @@
-import os
-
 from rlbench.observation_config import ObservationConfig
-from tensorflow.keras.models import load_model
+
 from tensorflow.keras.callbacks import ModelCheckpoint
+from tensorflow.keras.backend import clear_session
+from tensorflow.keras.models import load_model
 from tensorflow.keras.utils import plot_model
+from tensorflow.keras import Model
+
+from utils.network_info import NetworkInfo
 from utils.utils import get_order
 from utils.utils import load_data
 from utils.utils import format_data
-from utils.utils import check_yes
 from utils.utils import format_time
 from utils.utils import split_data
-from utils.training_info import TrainingInfo
-from utils.network_info import NetworkInfo
-from tensorflow.keras import Model
-from os.path import join
-from os import listdir
+
 from evaluate import evaluate_network
-from typing import Tuple
+from config import EndToEndConfig
+
+from psutil import virtual_memory
 from typing import List
 from typing import Dict
 from typing import Union
-from config import EndToEndConfig
-from psutil import virtual_memory
+from os.path import join
+from os import listdir
+
 import numpy as np
-import tensorflow as tf
-import gc
 import pickle
-import datetime
 import time
+import gc
 
 
 def train_new(config: EndToEndConfig) -> None:
@@ -77,7 +76,7 @@ def train_existing(config: EndToEndConfig) -> None:
     network_info.epochs_to_train = 1 if request < 1 else request
     print(f'Training the network for {network_info.epochs_to_train} additional epoch. ')
 
-    ep_in_train_dir = len(os.listdir(network_info.train_dir))
+    ep_in_train_dir = len(listdir(network_info.train_dir))
     if network_info.train_amount != ep_in_train_dir:
         retraining_warning(network_info.train_amount, ep_in_train_dir)
 
@@ -310,7 +309,7 @@ def free_memory(threshold: Union[int, None] = None) -> None:
 
     See: see: https://github.com/tensorflow/tensorflow/issues/37505
     """
-    tf.keras.backend.clear_session()  # Resolves memory overflow
+    clear_session()  # Resolves memory overflow
     gc.collect()  # Explicitly called for safety. Does not affect speed.
 
     msg = '[Warn] '

@@ -1,16 +1,21 @@
 from tensorflow.keras.models import load_model
+
+from rlbench.action_modes import ArmActionMode
+from rlbench.action_modes import ActionMode
 from rlbench.environment import Environment
-from rlbench.action_modes import ArmActionMode, ActionMode
 from rlbench.observation_config import ObservationConfig
 from rlbench.backend.observation import Observation
+
 from rlbench import DomainRandomizationEnvironment
 from rlbench import RandomizeEvery
 from rlbench import VisualRandomizationConfig
+
 from utils.utils import scale_pose
 from utils.utils import blank_image_list
 from utils.utils import step_images
-from os.path import join
 from config import EndToEndConfig
+
+from os.path import join
 import numpy as np
 import pickle
 

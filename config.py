@@ -5,19 +5,15 @@ from utils.training_info import TrainingInfo
 from utils.network_info import NetworkInfo
 from utils.networks import NetworkBuilder
 from utils.utils import alpha_numeric_sort
-from utils.utils import split_data
-from utils.utils import check_yes
 
 from tensorflow.keras import Model
 
 from os.path import dirname
 from os.path import realpath
 from os.path import join
-from os.path import isdir
 from os import listdir
 
 from typing import Tuple
-from typing import Dict
 from typing import List
 from typing import Any
 

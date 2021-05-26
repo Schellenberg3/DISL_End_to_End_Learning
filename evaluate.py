@@ -1,14 +1,18 @@
 from rlbench.observation_config import ObservationConfig
+
 from tensorflow.keras.models import load_model
 from tensorflow.keras import Model
+
 from utils.network_info import NetworkInfo
 from utils.utils import get_order
 from utils.utils import split_data
 from utils.utils import format_data
 from utils.utils import load_data
 from config import EndToEndConfig
+
 from datetime import datetime as dt
 from os.path import join
+
 import numpy as np
 import pickle
 

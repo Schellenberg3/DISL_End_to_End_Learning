@@ -1,18 +1,25 @@
+from rlbench.action_modes import ArmActionMode
+from rlbench.action_modes import ActionMode
+
 from rlbench.environment import Environment
-from rlbench.action_modes import ArmActionMode, ActionMode
+
 from rlbench.observation_config import ObservationConfig
+
 from rlbench import DomainRandomizationEnvironment
 from rlbench import RandomizeEvery
 from rlbench import VisualRandomizationConfig
-from config import EndToEndConfig
+
 from utils.utils import save_episodes
 from utils.utils import check_yes
+from config import EndToEndConfig
+
 from multiprocessing import Process
 from os.path import join
+from os import cpu_count
 from os import listdir
-import os
-import time
+
 import pathlib
+import time
 
 
 def multiprocess_demos(mp_action_mode,
@@ -160,8 +167,8 @@ if __name__ == '__main__':
               f'\n[Info] Exiting program successfully.')
         exit()
 
-    demo_per_process = int(required_new_demos / os.cpu_count())
-    demo_per_process_remainder = required_new_demos % os.cpu_count()
+    demo_per_process = int(required_new_demos / cpu_count())
+    demo_per_process_remainder = required_new_demos % cpu_count()
 
     print(f'[Info] Requested a total of {num_total_demos} demonstration episodes and '
           f'found {num_existing_demos} at the desired location. '
@@ -172,9 +179,9 @@ if __name__ == '__main__':
         exit(f'[Warn] Answer: {ans} not recognized. Exiting program without generating demonstrations.')
 
     num_start_at = num_existing_demos
-    for i in range(os.cpu_count()):
+    for i in range(cpu_count()):
 
-        if i < (os.cpu_count() - 1) and demo_per_process_remainder > 0:
+        if i < (cpu_count() - 1) and demo_per_process_remainder > 0:
             num_request = demo_per_process + 1
             demo_per_process_remainder -= 1
         else:
