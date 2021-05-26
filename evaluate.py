@@ -1,108 +1,94 @@
 from rlbench.observation_config import ObservationConfig
 from tensorflow.keras.models import load_model
+from tensorflow.keras import Model
+from utils.network_info import NetworkInfo
+from utils.utils import get_order
+from utils.utils import split_data
 from utils.utils import format_data
 from utils.utils import load_data
-from utils.utils import split_data
-from utils.utils import split_data_4
-from utils.utils import check_yes
-from utils.utils import get_order
-from os.path import join
 from config import EndToEndConfig
-import matplotlib.pyplot as plt
+from datetime import datetime as dt
+from os.path import join
 import numpy as np
 import pickle
-import datetime
 
-if __name__ == "__main__":
+
+def main():
     print('[Info] Starting evaluate.py')
 
     obs_config = ObservationConfig()
+    obs_config.task_low_dim_state = True
 
     config = EndToEndConfig()
+    network_dir = config.get_trained_network()
 
-    network_dir, network_name = config.get_trained_network()
+    with open(join(network_dir, 'network_info.pickle'), 'rb') as f:
+        network_info: NetworkInfo = pickle.load(f)
+
+    test_dir, test_amount, test_available = config.get_evaluate_directory()
+    network_info.test_dir = test_dir
+    network_info.test_amount = test_amount
+    network_info.test_available = test_available
+
     network = load_model(network_dir)
-    print(f'\n[Info] Finished loading the network, {network_name}.')
 
-    parsed_network_name = network_name.split('_')
-    if 'pv4' in parsed_network_name or 'rnn-pv4' in parsed_network_name:
-        print(f'\n[Info] Detected that the network uses 4 images. '
-              f'Will structure inputs accordingly')
-        split = split_data_4
-    else:
-        split = split_data
+    evaluate_network(network=network,
+                     network_info=network_info,
+                     network_save_dir=network_dir,
+                     obs_config=obs_config)
 
-    pov = config.get_pov_from_name(parsed_network_name)
 
-    eval_dir, eval_amount, eval_available = config.get_evaluate_directory()
+def evaluate_network(network: Model, network_info: NetworkInfo,
+                     network_save_dir: str, obs_config: ObservationConfig) -> None:
+    print(f'\n[info] Beginning to evaluate the model on {network_info.test_amount} test demonstration episodes')
 
-    if not check_yes('\nAre you ready to begin? (y/n) '):
-        exit(f'\n[Warn] Answer not recognized. Exiting program without creating a new model.')
+    test_order = get_order(network_info.test_amount, network_info.test_available)
+    evaluation_performance = []
 
-    eval_order = get_order(eval_amount, eval_available)
+    for episode in test_order:
+        inputs, labels = split_data(format_data(load_data(network_info.test_dir,
+                                                          episode,
+                                                          obs_config),
+                                                pov=network_info.pov),
+                                    pov=network_info.pov)
 
-    fig, axs = plt.subplots(7)
-    for axis in axs:
-        axis.set_ylim(-0.1, 1.1)
-    fig.suptitle('Joint Angles')
+        train_angles = inputs[0]
+        train_action = inputs[1]
+        train_images = inputs[2]
 
-    print(f'\n[info] Beginning to evaluate the model on {eval_amount} episodes')
+        label_angles = labels[0]
+        label_action = labels[1]
+        label_target = labels[2]
+        label_gripper = labels[3]
 
-    max_mse = -1
-    max_mse_ep = -1
-    min_mse = float('inf')
-    min_mse_ep = -1
-    avg_mse = 0
-    tot_mse = 0
+        loss = network.evaluate(x=[np.asarray(train_angles),
+                                   np.asarray(train_action),
+                                   np.asarray(train_images)],
+                                y=[np.asarray(label_angles),
+                                   np.asarray(label_action),
+                                   np.asarray(label_target),
+                                   np.asarray(label_gripper)],
+                                verbose=1,
+                                batch_size=len(train_angles))
 
-    for episode in eval_order:
-        test_pose, test_view, test_label = split(format_data(load_data(eval_dir,
-                                                                       episode,
-                                                                       obs_config)),
-                                                 pov)
+        loss.append(episode)
+        evaluation_performance.append(loss)
 
-        loss, mse = network.evaluate(x=[np.asarray(test_pose),
-                                        np.asarray(test_view)],
-                                     y=np.asarray(test_label),
-                                     verbose=1,
-                                     batch_size=len(test_pose))
+    evaluation_performance = np.array(evaluation_performance)
 
-        axs[0].plot(np.array(test_pose)[:, 0])
-        axs[1].plot(np.array(test_pose)[:, 1])
-        axs[2].plot(np.array(test_pose)[:, 2])
-        axs[3].plot(np.array(test_pose)[:, 3])
-        axs[4].plot(np.array(test_pose)[:, 4])
-        axs[5].plot(np.array(test_pose)[:, 5])
-        axs[6].plot(np.array(test_pose)[:, 6])
+    fname = 'evaluation'
+    task = network_info.test_dir.split('/')[-3]
+    time = dt.now().strftime("%Y_%d_%m_%H:%M")
 
-        avg_mse += mse
+    fname = '_'.join([fname, task, time]) + '.csv'
 
-        if mse > max_mse:
-            max_mse = mse
-            max_mse_ep = episode
-        elif mse < min_mse:
-            min_mse = mse
-            min_mse_ep = episode
+    header = ['loss', 'joint MSE loss', 'action sparse entropy loss', 'target MSE loss',
+              'gripper MSE loss', 'joint RMS', 'action accuracy', 'target RMS', 'gripper RMS', 'episode']
+    np.savetxt(join(network_save_dir, fname),
+               evaluation_performance,
+               delimiter=",",
+               header=', '.join(header))
 
-    plt.show()
 
-    try:
-        avg_acc = avg_mse / len(eval_order)
-    except ZeroDivisionError:
-        avg_acc = 'NO EVALUATION'
-
-    evaluation_summary = f'Evaluated at {datetime.datetime.now()} \n' \
-                         f'Tested on {eval_dir} \n' \
-                         f'The {len(eval_order)} episodes were numbers {eval_order} \n' \
-                         f'Found an average mse of {avg_acc} with a max of {max_mse} ' \
-                         f'at episode {max_mse_ep} and a min of {min_mse} at episode {min_mse_ep}.' \
-                         f'\n{eval_amount} episodes were used for testing.'
-
-    print('\nEvaluation Summary:')
-    print(evaluation_summary)
-
-    with open(join(network_dir, 'model_summary.txt'), "a") as f:
-        f.write(f'\n\n-------------------------------------------------------\n\n'
-                f'{evaluation_summary}')
-
-    print(f'\n[Info] Successfully exiting program.')
+if __name__ == "__main__":
+    main()
