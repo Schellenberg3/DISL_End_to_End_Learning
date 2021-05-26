@@ -393,25 +393,6 @@ def check_if_network_exists(network_save_dir: str) -> None:
         pass
 
 
-# Todo: rewrite this function
-def save_training_history(train_performance: List, network_save_dir: str, prev_train_performance: np.ndarray = None):
-    steps = []
-    mse = []
-    for perf in train_performance:
-        steps.append(perf['steps'])
-        mse.append(perf['mse'][0])
-
-    train_performance_csv = np.vstack((np.asarray(steps), np.asarray(mse))).transpose()
-    if prev_train_performance is not None:
-        train_performance_csv = np.vstack((prev_train_performance,
-                                           train_performance_csv))
-
-    np.savetxt(join(network_save_dir, 'train_performance.csv'),
-               train_performance_csv,
-               delimiter=",",
-               header='steps, mse')
-
-
 def main():
     config = EndToEndConfig()
 
