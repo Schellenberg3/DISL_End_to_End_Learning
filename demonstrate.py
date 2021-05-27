@@ -10,6 +10,7 @@ from rlbench import DomainRandomizationEnvironment
 from rlbench import RandomizeEvery
 from rlbench import VisualRandomizationConfig
 
+from utils.network_info import NetworkInfo
 from utils.utils import scale_pose
 from utils.utils import blank_image_list
 from utils.utils import step_images
@@ -60,24 +61,19 @@ def main():
 
     config = EndToEndConfig()
 
-    network_dir, network_name = config.get_trained_network()
+    network_dir = config.get_trained_network()
     network = load_model(network_dir)
 
     pickle_location = join(network_dir, 'network_info.pickle')
     with open(pickle_location, 'rb') as handle:
-        network_info = pickle.load(handle)
+        network_info: NetworkInfo = pickle.load(handle)
 
-    num_images = network_info['num_images']
+    print(f'\n[Info] Finished loading the network, {network_info.network_name}.')
 
-    print(f'\n[Info] Finished loading the network, {network_name}.')
-
-    parsed_network_name = network_name.split('_')
-
-    pov = config.get_pov_from_name(parsed_network_name)
-
+    parsed_network_name = network_info.network_name.split('_')
     task_name, imitation_task = config.get_task_from_name(parsed_network_name)
 
-    num_demonstrations = int(input('\nEnter how many demonstrations to perform: '))
+    num_demonstrations = int(input('\nEnter how many demonstrations to perform (default 5): ') or 5)
     demonstration_episode_length = 40  # max steps per episode
 
     action_mode = ActionMode(ArmActionMode.ABS_JOINT_POSITION)
@@ -103,17 +99,17 @@ def main():
 
     evaluation_steps = num_demonstrations * demonstration_episode_length
 
-    image_list = blank_image_list(num_images)
+    image_list = blank_image_list(network_info.num_images)
 
     obs = None
     for i in range(evaluation_steps):
         if i % demonstration_episode_length == 0:  # e.g. we're starting a new demonstration
             descriptions, obs = task.reset()
-            image_list = blank_image_list(num_images)
+            image_list = blank_image_list(network_info.num_images)
             print(f"[Info] Task reset: on episode {int(1+(i/demonstration_episode_length))} "
                   f"of {int(evaluation_steps / demonstration_episode_length)}")
 
-        image = get_image(obs, pov)
+        image = get_image(obs, network_info.pov)
 
         image_list = step_images(image_list, image)
 
@@ -123,11 +119,10 @@ def main():
         # TODO: SCALE JOINT INPUT TO 0 TO 1 RANGE
         #       HOW DID i FORGET TO DO THIS?
         joints_input = np.expand_dims(obs.joint_positions, 0)
+        joints_input = scale_pose(joints_input, -3.14, 3.14, 0, 1)
 
         prediction = network.predict(x=[joints_input, gripper_input, image_input])
 
-        # TODO: SCALE JOINT INPUT TO -3.14 TO 3.14 RANGE
-        #       HOW DID i FORGET TO DO THIS?
         joint_action = scale_pose(prediction[0].flatten())
         gripper_action = get_gripper_action(prediction[1].flatten())  # How do we select which one?
 
@@ -135,6 +130,7 @@ def main():
         try:
             target_actual = task._task.cup.get_pose()
         except NameError:
+            print('[Error] Unable to find target. Returning infinity as position')
             target_actual = np.array([np.inf, np.inf, np.inf])
 
         gripper_estimation = prediction[3].flatten()
