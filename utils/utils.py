@@ -440,6 +440,24 @@ def scale_pose(array: np.ndarray, old_min=0., old_max=1., new_min=-3.14, new_max
     return array
 
 
+def scale_pose_up(array: np.ndarray) -> np.ndarray:
+    """
+    Scales each element of the input array from [0, 1] up to [-3.14, 3.14]
+
+    :param array: Array to be scaled
+    """
+    return scale_pose(array, 0, 1, -3.14, 3.14)
+
+
+def scale_pose_down(array: np.ndarray) -> np.ndarray:
+    """
+    Scales each element of the input array from [-3.14, 3.14] down to [0, 1]
+
+    :param array: Array to be scaled
+    """
+    return scale_pose(array, -3.14, 3.14, 0, 1)
+
+
 def step_images(image_list: List[np.ndarray], new_image: np.ndarray) -> List[np.ndarray]:
     """
     Takes a list (or 'history') of images and adds a new images to the front while passing
