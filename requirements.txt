@@ -3,3 +3,4 @@ psutil
 tensorflow
 PIL
 numpy
+pytest
