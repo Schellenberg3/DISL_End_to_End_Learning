@@ -100,7 +100,7 @@ def get_order(amount: int, available: int, epochs=1) -> List[int]:
     return order
 
 
-def save_episodes(episodes: np.ndarray, data_set_path: str, start_episode=0) -> None:
+def save_episodes(episodes: List[Demo], data_set_path: str, start_episode=0) -> None:
     """ Takes a list of demos/episodes and saves them to disk under the
     data folder.
 
@@ -413,11 +413,7 @@ def format_data(episode: Demo, pov: Union[List[str], str]) -> Demo:
         if wrist:
             episode[step].wrist_rgb = episode[step].wrist_rgb / 255
 
-        episode[step].joint_positions = scale_pose(episode[step].joint_positions,
-                                                   old_min=-3.14,
-                                                   old_max=3.14,
-                                                   new_min=0,
-                                                   new_max=1)
+        episode[step].joint_positions = scale_pose_down(episode[step].joint_positions)
 
     return episode
 
