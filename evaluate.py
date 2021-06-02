@@ -1,31 +1,29 @@
 from rlbench.observation_config import ObservationConfig
 
+from tensorflow.keras.metrics import SparseCategoricalAccuracy
+from tensorflow.keras.metrics import RootMeanSquaredError
 from tensorflow.keras.models import load_model
 from tensorflow.keras import Model
 
-from tensorflow.keras.metrics import RootMeanSquaredError
-from tensorflow.keras.metrics import SparseCategoricalAccuracy
-
 from utils.network_info import NetworkInfo
-from utils.utils import get_order
-from utils.utils import split_data
 from utils.utils import format_data
+from utils.utils import split_data
 from utils.utils import load_data
+from utils.utils import get_order
+
 from config import EndToEndConfig
 
 from datetime import datetime as dt
-from os.path import join
-from os import listdir
-
 from random import uniform
 
-import numpy as np
+from os.path import join
+from os import listdir
 
 from argparse import Namespace
 import argparse
 
+import numpy as np
 import pickle
-
 import cv2
 
 
@@ -90,8 +88,6 @@ def display_vis(network, network_info, obs_config):
     width = 128 * network_info.num_images if 128 * network_info.num_images > 1024 else 1024
     height = 800
     blank = np.ones((height, width, 3)) * 0.1
-
-    zero = np.zeros((128, 128))
 
     width_offset = 10
     text_offset = 30
