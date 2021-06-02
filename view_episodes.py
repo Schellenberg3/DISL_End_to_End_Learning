@@ -126,7 +126,7 @@ def main():
                     lineType=cv2.LINE_AA)
         disk_angle = ''
         disk_angle = '[' + ', '.join([disk_angle + f'{p:.3f}' for p in on_disk[step].joint_positions]) + ']'
-        disk_angle = f'Joint angles: {disk_angle})'
+        disk_angle = f'Joint angles: {disk_angle}'
         cv2.putText(img=display,
                     text=disk_angle,
                     org=(128 + width_offset, on_disk_height + text_offset*3),
@@ -160,7 +160,7 @@ def main():
         formatted_angle_text = '[' + \
                                ', '.join([formatted_angle_text + f'{p:.3f}' for p in formatted[step].joint_positions]) \
                                + ']'
-        formatted_angle_text = f'Joint angles: {formatted_angle_text})'
+        formatted_angle_text = f'Joint angles: {formatted_angle_text}'
         cv2.putText(img=display,
                     text=formatted_angle_text,
                     org=(128 + width_offset, formatted_height + text_offset*2),
@@ -198,7 +198,7 @@ def main():
                     lineType=cv2.LINE_AA)
         train_angle_text = ''
         train_angle_text = '[' + ', '.join([train_angle_text + f'{p:.3f}' for p in train_angles[step]]) + ']'
-        train_angle_text = f'Input joint angles: {train_angle_text})'
+        train_angle_text = f'Input joint angles: {train_angle_text}'
         cv2.putText(img=display,
                     text=train_angle_text,
                     org=(width_offset, labels_height + text_offset*3),
