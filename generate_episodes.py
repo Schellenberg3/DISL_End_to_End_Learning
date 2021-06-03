@@ -18,6 +18,8 @@ from os.path import join
 from os import cpu_count
 from os import listdir
 
+from typing import Union
+
 import pathlib
 import time
 
@@ -80,7 +82,7 @@ def multiprocess_demos(mp_action_mode,
             mp_prior_error = True
 
         if mp_error_count >= mp_max_consecutive_error:
-            print(f'[WARN] experienced {mp_error_count} consecutive RuntimeError with CopelliaSim.'
+            print(f'[WARN] experienced {mp_error_count} consecutive RuntimeError with CopelliaSim. '
                   f'Abandoning the process. Dataset is likely broken near demonstration episode {mp_begin_save_at}.')
             break
 
@@ -102,7 +104,7 @@ if __name__ == '__main__':
     num_total_demos = int(input('\nHow many episodes should be generated? '))
 
     tag = input('\nWhat tag should the directory have? Testing (default), training, misc:  ').lower()
-    if tag not in ['testing','training','misc']:
+    if tag not in ['testing', 'training', 'misc']:
         tag = 'testing'
 
     if check_yes('\nWill the scene be randomized? (y/n) '):
