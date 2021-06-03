@@ -471,6 +471,42 @@ def scale_pose_down(array: np.ndarray) -> np.ndarray:
     return scale_pose(array, -3.14, 3.14, 0, 1)
 
 
+def scale_panda_pose(array: np.ndarray, direction: str = 'up') -> np.ndarray:
+    """
+    Uses the panda joint angles found in CoppeliaSim and the scale_pose function to
+    linearly scale the joint values to and from a range of [0, 1]
+
+    :param array:     Input array to be scaled
+    :param direction: Either 'up' to return to RLBench values from [0, 1] or 'down' to
+                      retrieve normalized values from RLBench values.
+
+    :return: Scaled array of the same dimensions
+    """
+    # Joint [min, max] in degrees from CoppeliaSim
+    panda = np.array([[-166, 332],
+                      [-101, 202],
+                      [-166, 332],
+                      [-176, 172],
+                      [-166, 332],
+                      [-1, 216],
+                      [-166, 332]])
+    panda = np.deg2rad(panda)
+
+    for i, val in enumerate(panda):
+        if direction == 'up':
+            old_min = 0.
+            old_max = 1.
+            new_min = val[0]
+            new_max = val[1]
+        else:  # if direction == 'down'
+            old_min = val[0]
+            old_max = val[1]
+            new_min = 0.
+            new_max = 1.
+        array[i] = scale_value(array[i], old_min=old_min, old_max=old_max, new_min=new_min, new_max=new_max)
+    return array
+
+
 def step_images(image_list: List[np.ndarray], new_image: np.ndarray) -> List[np.ndarray]:
     """
     Takes a list (or 'history') of images and adds a new images to the front while passing
