@@ -118,7 +118,7 @@ if __name__ == '__main__':
         missing_num = [x for x in range(pkl_ep_int[0], pkl_ep_int[-1]+1) if x not in pkl_ep_int]
         [print(f'episode{n}') for n in missing_num]
     else:
-        print(f'\n[Info] Checked the pickle files, all episodes are complete!')
+        print(f"\n[Info] Checked all episodes for 'low_dim_obs.pkl' files and found no missing data.")
 
     print(f'\n[Info] Successfully renamed {num_to_rename} files at: {broken_dataset_dir}. '
           f'Process took {end_rename - start_rename:.3f} seconds. Exiting program.')
