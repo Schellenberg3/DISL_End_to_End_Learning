@@ -98,8 +98,9 @@ class NetworkBuilder(object):
         size = [(3, 3), (3, 3), (3, 3), (3, 3), (3, 3), (3, 3), (2, 2)]
         stride = [2, 2, 2, 2, 2, 2, 2]
 
+        vis = vis_input
         for (i, f) in enumerate(filters):
-            vis = Conv2D(f, size[i], strides=stride[i], padding="same")(vis_input)
+            vis = Conv2D(f, size[i], strides=stride[i], padding="same")(vis)
             vis = Activation("relu")(vis)
             vis = BatchNormalization(axis=-1)(vis)
 
