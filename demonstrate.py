@@ -11,7 +11,7 @@ from rlbench import RandomizeEvery
 from rlbench import VisualRandomizationConfig
 
 from utils.network_info import NetworkInfo
-from utils.utils import scale_pose
+from utils.utils import scale_panda_pose
 from utils.utils import blank_image_list
 from utils.utils import step_images
 from config import EndToEndConfig
@@ -103,39 +103,52 @@ def main():
 
     obs = None
     for i in range(evaluation_steps):
-        if i % demonstration_episode_length == 0:  # e.g. we're starting a new demonstration
+        if i % demonstration_episode_length == 0:  # i.e. we're starting a new demonstration
             descriptions, obs = task.reset()
             image_list = blank_image_list(network_info.num_images)
             print(f"[Info] Task reset: on episode {int(1+(i/demonstration_episode_length))} "
                   f"of {int(evaluation_steps / demonstration_episode_length)}")
 
+        ##############################################################
+        # Collect prediction information from the latest observation #
+        ##############################################################
         image = get_image(obs, network_info.pov)
-
         image_list = step_images(image_list, image)
-
         image_input = np.expand_dims(np.dstack(image_list), 0)
+
         gripper_input = np.expand_dims(obs.gripper_open, 0)
 
-        # TODO: SCALE JOINT INPUT TO 0 TO 1 RANGE
-        #       HOW DID i FORGET TO DO THIS?
-        joints_input = np.expand_dims(obs.joint_positions, 0)
-        joints_input = scale_pose(joints_input, -3.14, 3.14, 0, 1)
+        joints_input = scale_panda_pose(obs.joint_positions, 'down')  # to [0, 1] for prediction
+        joints_input = np.expand_dims(joints_input, 0)
 
+        #######################
+        # Make the prediction #
+        #######################
         prediction = network.predict(x=[joints_input, gripper_input, image_input])
 
-        joint_action = scale_pose(prediction[0].flatten())
-        gripper_action = get_gripper_action(prediction[1].flatten())  # How do we select which one?
+        ##########################################################
+        # Parse prediction for the actions and auxiliary outputs #
+        ##########################################################
+        joint_action = prediction[0].flatten()
+        joint_action = scale_panda_pose(joint_action, 'up')   # from [0, 1] to joint's proper values
+
+        gripper_action = prediction[1].flatten()
+        gripper_action = np.argmax(gripper_action)  # Selects index with the higher value
 
         target_estimation = prediction[2].flatten()
+
+        gripper_estimation = prediction[3].flatten()
+
         try:
             target_actual = task._task.cup.get_pose()
         except NameError:
             print('[Error] Unable to find target. Returning infinity as position')
             target_actual = np.array([np.inf, np.inf, np.inf])
-
-        gripper_estimation = prediction[3].flatten()
         gripper_actual = obs.gripper_pose
 
+        #######################################################
+        # Create action input and step the simulation forward #
+        #######################################################
         action = np.append(joint_action, gripper_action)
         obs, reward, terminate = task.step(action)
 
