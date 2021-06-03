@@ -2,6 +2,7 @@
 data/
 datasets/
 .idea/
+utils/test_episodes
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
