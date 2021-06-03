@@ -385,6 +385,8 @@ def evaluate_network(network: Model, network_info: NetworkInfo,
 
     fname = 'evaluation'
     task = network_info.test_dir.split('/')[-3]
+    if 'randomized' in network_info.test_dir.split('/')[-4].split('_'):
+        task += '_Rand'
     time = dt.now().strftime("%Y_%d_%m_%H:%M")
 
     fname = '_'.join([fname, task, time]) + '.csv'
