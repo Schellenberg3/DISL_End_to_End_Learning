@@ -53,8 +53,6 @@ def multiprocess_demos(mp_action_mode,
                      obs=mp_obs_config, image_dir=mp_dr_images, head=mp_headless)
     mp_env.launch()
 
-    mp_task = mp_env.get_task(requested_task)
-
     mp_error_count = 0
     mp_max_consecutive_error = 30
 
@@ -70,8 +68,10 @@ def multiprocess_demos(mp_action_mode,
             mp_demos_per_loop = mp_remaining
 
         try:
+            mp_task = mp_env.get_task(requested_task)
             mp_demos = mp_task.get_demos(mp_demos_per_loop, live_demos=True)
             save_episodes(mp_demos, mp_root_save_path, mp_begin_save_at)
+            del mp_task
 
             if mp_prior_error:
                 mp_prior_error = False
