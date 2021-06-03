@@ -60,7 +60,7 @@ class NetworkBuilder(object):
         Current intent is for joint angles but could be velocities or any other
         value. This is decided at the training stage.
         """
-        pos_input = Input(shape=self._num_joints, name='Joint Values Input')
+        pos_input = Input(shape=self._num_joints)
         if self._deep:
             pos = Dense(16, activation="tanh")(pos_input)
         else:
@@ -76,7 +76,7 @@ class NetworkBuilder(object):
         Current intent is for this to be categorical where 0 := close gripper and 1 := open gripper.
         However, this is decided at the compilation and training stage.
         """
-        gripper_input = Input(shape=1, name='Gripper Action Input')
+        gripper_input = Input(shape=1)
         if self._deep:
             grip = Dense(4, activation="tanh")(gripper_input)
         else:
@@ -89,7 +89,7 @@ class NetworkBuilder(object):
 
         May be expanded with other CNN structures in the future.
         """
-        vis_input = Input(shape=(128, 128, 4*self._num_images), name='RGBD Input')
+        vis_input = Input(shape=(128, 128, 4*self._num_images))
 
         # Todo: consider using other values/structures here...
         #       Currently using network inspired by:
