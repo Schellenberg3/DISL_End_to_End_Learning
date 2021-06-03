@@ -6,6 +6,7 @@ from os import renames
 
 import numpy as np
 import time
+import glob
 
 if __name__ == '__main__':
 
@@ -107,6 +108,17 @@ if __name__ == '__main__':
     print(f'\n[Info] The average number of steps per episode was {avg:.3f} with standard deviation of {std:.3f}.')
     print(f'[Info] Max number of steps: {max_size[0]} at {max_size[1].split(s)[-1]}')
     print(f'[Info] Min number of steps: {min_size[0]} at {min_size[1].split(s)[-1]}')
+
+    pkl_count = glob.glob(join(broken_dataset_dir, '*', 'low_dim_obs.pkl'))
+    pkl_correct = num_to_rename == len(pkl_count)
+    if not pkl_correct:
+        print(f'\n[WARN] Missing Pickle Files in {num_to_rename-len(pkl_count)} episode(s)! Check the following...')
+        pkl_ep_int = [int(p.split('/')[-2:][0][7:]) for p in pkl_count]
+        pkl_ep_int.sort()
+        missing_num = [x for x in range(pkl_ep_int[0], pkl_ep_int[-1]+1) if x not in pkl_ep_int]
+        [print(f'episode{n}') for n in missing_num]
+    else:
+        print(f'\n[Info] Checked the pickle files, all episodes are complete!')
 
     print(f'\n[Info] Successfully renamed {num_to_rename} files at: {broken_dataset_dir}. '
           f'Process took {end_rename - start_rename:.3f} seconds. Exiting program.')
