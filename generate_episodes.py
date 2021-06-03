@@ -22,6 +22,22 @@ import pathlib
 import time
 
 
+def get_env(rand: bool, act_mode: ActionMode, obs: ObservationConfig, image_dir: str,
+            head: bool = True) -> Union[Environment, DomainRandomizationEnvironment]:
+    if not rand:
+        env = Environment(action_mode=act_mode, obs_config=obs, headless=head)
+    else:
+        im_path = pathlib.Path().absolute() / image_dir
+        mp_rand_config = VisualRandomizationConfig(image_directory=im_path)
+        # todo: Domain randomization code forces panda. Why? Can this be changed?
+        env = DomainRandomizationEnvironment(action_mode=act_mode,
+                                             obs_config=obs,
+                                             headless=head,
+                                             visual_randomization_config=mp_rand_config,
+                                             randomize_every=RandomizeEvery.EPISODE)
+    return env
+
+
 def multiprocess_demos(mp_action_mode,
                        mp_obs_config,
                        mp_headless,
@@ -31,25 +47,8 @@ def multiprocess_demos(mp_action_mode,
                        mp_root_save_path,
                        mp_domain_rand,
                        mp_dr_images):
-
-    if not mp_domain_rand:
-        mp_env = Environment(action_mode=mp_action_mode,
-                             obs_config=mp_obs_config,
-                             headless=mp_headless)
-    else:
-        # Configuration textures borrowed from RLBench
-        # todo: generate our own textures - different levels of textures?
-        im_path = pathlib.Path().absolute() / mp_dr_images
-        mp_rand_config = VisualRandomizationConfig(image_directory=im_path)
-        # todo: does domain randomization environment ONLY work with panda?
-        # todo: what does frequency do?
-        mp_env = DomainRandomizationEnvironment(action_mode=mp_action_mode,
-                                                obs_config=mp_obs_config,
-                                                headless=mp_headless,
-                                                randomize_every=RandomizeEvery.EPISODE,
-                                                frequency=1,
-                                                visual_randomization_config=mp_rand_config)
-
+    mp_env = get_env(rand=mp_domain_rand, act_mode=mp_action_mode,
+                     obs=mp_obs_config, image_dir=mp_dr_images, head=mp_headless)
     mp_env.launch()
 
     mp_task = mp_env.get_task(requested_task)
