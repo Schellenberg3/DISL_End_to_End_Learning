@@ -432,8 +432,25 @@ def scale_pose(array: np.ndarray, old_min=0., old_max=1., new_min=-3.14, new_max
     :return: New values
     """
     for i in range(len(array)):
-        array[i] = (new_max - new_min)*(array[i] - old_max)/(old_max - old_min) + new_max
+        array[i] = scale_value(array[i], old_min=old_min, old_max=old_max, new_min=new_min, new_max=new_max)
     return array
+
+
+def scale_value(value, old_min=0., old_max=1., new_min=-3.14, new_max=3.14) -> float:
+    """
+    Linearly scales a single value from [old_min, old_max] to [new_min, new_max]
+
+    Used as a helper for scale_pose and scale_panda_pose.
+
+    :param value:   Old value
+    :param old_min: Old starting value
+    :param old_max: Old ending value
+    :param new_min: New starting value
+    :param new_max: New ending value
+
+    :return: New value
+    """
+    return (new_max - new_min)*(value - old_max)/(old_max - old_min) + new_max
 
 
 def scale_pose_up(array: np.ndarray) -> np.ndarray:
