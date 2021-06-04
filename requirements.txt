@@ -1,7 +1,7 @@
 matplotlib
 psutil
 tensorflow
-PIL
+Pillow
 numpy
 pytest
-cv2
+opencv-python
