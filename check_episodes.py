@@ -67,11 +67,17 @@ if __name__ == '__main__':
     min_size = [float('inf'), '']
     max_size = [-1, '']
 
+    missing_pkl = []
+
     for i, dir_name in enumerate(listdir(broken_dataset_dir)):
         old_name = f'{broken_dataset_dir}/{dir_name}'
         size = len(listdir(f'{old_name}/front_rgb'))
         new_name = f'{broken_dataset_dir}/episode{i}'
         renames(old_name, new_name)
+
+        pkl_count = len(glob.glob(join(new_name, 'low_dim_obs.pkl')))
+        if pkl_count != 1:
+            missing_pkl.append(new_name.split('/')[-1])
 
         if size < min_size[0]:
             min_size[0] = size
@@ -109,14 +115,9 @@ if __name__ == '__main__':
     print(f'[Info] Max number of steps: {max_size[0]} at {max_size[1].split(s)[-1]}')
     print(f'[Info] Min number of steps: {min_size[0]} at {min_size[1].split(s)[-1]}')
 
-    pkl_count = glob.glob(join(broken_dataset_dir, '*', 'low_dim_obs.pkl'))
-    pkl_correct = num_to_rename == len(pkl_count)
-    if not pkl_correct:
-        print(f'\n[WARN] Missing Pickle Files in {num_to_rename-len(pkl_count)} episode(s)! Check the following...')
-        pkl_ep_int = [int(p.split('/')[-2:][0][7:]) for p in pkl_count]
-        pkl_ep_int.sort()
-        missing_num = [x for x in range(pkl_ep_int[0], pkl_ep_int[-1]+1) if x not in pkl_ep_int]
-        [print(f'episode{n}') for n in missing_num]
+    if len(missing_pkl) > 0:
+        print(f'\n[WARN] Missing Pickle Files in {len(missing_pkl)} episode(s)! Check the following...')
+        [print(f'{ep}') for ep in missing_pkl]
     else:
         print(f"\n[Info] Checked all episodes for 'low_dim_obs.pkl' files and found no missing data.")
 
