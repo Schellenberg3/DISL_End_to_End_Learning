@@ -89,7 +89,7 @@ z = Reshape((1, combined.shape[1]))(combined)
 z = LSTM(128)(z)
 z = Dense(128, activation="relu")(z)
 
-output_gripper_state= Dense(1, activation="linear")(z)
+output_gripper_state = Dense(1, activation="linear")(z)
 output_joint_angles = Dense(7, activation="linear")(z)
 output_gripper_pose = Dense(16, activation="linear")(z)
 output_target_pose = Dense(16, activation="linear")(z)
@@ -103,8 +103,7 @@ model.compile(optimizer='adam',
                     'output_joint_angles': 'cosine_similarity',
                     'output_gripper_pose': 'mse',
                     'output_target_pose': 'mse',
-                    }
-)
+                    })
 
 print("\n---> Finished compiling the combined model.\n")
 
@@ -112,13 +111,13 @@ keras.utils.plot_model(model, "post_thesis_network_testing_model.png", show_shap
 
 print("\n---> Finished compiling the combined model.\n")
 
-model.save('saved_model/compile_demo')
+model.save('saved_model/format_test.h5')
 model.summary()
 
-# print("\n---> Saved the combined model.\n")
+print("\n---> Saved the combined model.\n")
 
 del model
 
-model = keras.models.load_model('saved_model/compile_demo')
+model = keras.models.load_model('saved_model/format_test.h5')
 
 print("\n---> Loaded a saved model.\n")
