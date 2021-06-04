@@ -328,6 +328,7 @@ def display_vis(network, network_info, obs_config):
                     thickness=2,
                     lineType=cv2.LINE_AA)
 
+        display = display[:, :, [2, 1, 0]]  # OpenCV uses BGR, images saved as RGB. Must convert.
         cv2.imshow('Display', display)
         cv2.waitKey(1)
 

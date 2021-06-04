@@ -273,6 +273,7 @@ def main():
         # *not* using uint8 is to uncomment line division on line 106 and scale the    #
         # visual display of whats on disk to the range of 0-1                          #
         ################################################################################
+        display = display[:, :, [2, 1, 0]]  # OpenCV uses BGR, images saved as RGB. Must convert.
         cv2.imshow('Display', display)
         cv2.waitKey(1)
 
