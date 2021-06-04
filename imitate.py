@@ -80,7 +80,7 @@ def train_existing(config: EndToEndConfig) -> None:
     if network_info.train_amount != ep_in_train_dir:
         retraining_warning(network_info.train_amount, ep_in_train_dir)
 
-    network = load_model(network_dir)
+    network = load_model(join(network_dir, network_dir.split('/')[-1] + '.h5'))
 
     train(network=network,
           network_info=network_info,
@@ -214,7 +214,7 @@ def train(network: Model,
     ####################
     # Save the network #
     ####################
-    network.save(network_save_dir)
+    network.save(join(network_save_dir, save_network_as + '.h5'))
 
     #####################################################################
     # Save network info, training performance, and a graph of the model #

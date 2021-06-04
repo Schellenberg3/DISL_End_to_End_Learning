@@ -46,7 +46,7 @@ def main(arguments: Namespace):
     network_info.test_amount = test_amount
     network_info.test_available = test_available
 
-    network = load_model(network_dir)
+    network = load_model(join(network_dir, network_dir.split('/')[-1] + '.h5'))
 
     if visual:
         display_vis(network=network,

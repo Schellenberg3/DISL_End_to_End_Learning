@@ -62,7 +62,7 @@ def main():
     config = EndToEndConfig()
 
     network_dir = config.get_trained_network()
-    network = load_model(network_dir)
+    network = load_model(join(network_dir, network_dir.split('/')[-1] + '.h5'))
 
     pickle_location = join(network_dir, 'network_info.pickle')
     with open(pickle_location, 'rb') as handle:
