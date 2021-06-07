@@ -149,7 +149,7 @@ class NetworkBuilder(object):
                                  output_gripper])
 
         network.compile(optimizer='adam',
-                        loss={'output_joints': CosineSimilarity(),
+                        loss={'output_joints': MeanSquaredError(),
                               'output_action': SparseCategoricalCrossentropy(from_logits=False),
                               'output_target': MeanSquaredError(),
                               'output_gripper': MeanSquaredError(),
