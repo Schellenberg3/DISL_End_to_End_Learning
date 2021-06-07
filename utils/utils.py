@@ -413,7 +413,7 @@ def format_data(episode: Demo, pov: Union[List[str], str]) -> Demo:
         if wrist:
             episode[step].wrist_rgb = episode[step].wrist_rgb / 255
 
-        episode[step].joint_positions = scale_pose_down(episode[step].joint_positions)
+        episode[step].joint_positions = scale_panda_pose(episode[step].joint_positions, 'down')
 
     return episode
 
