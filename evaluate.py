@@ -22,6 +22,7 @@ from os import listdir
 from argparse import Namespace
 import argparse
 
+import tensorflow as tf
 import numpy as np
 import pickle
 import cv2
@@ -235,8 +236,9 @@ def display_vis(network, network_info, obs_config):
         # - label action       #
         # - predicted action   #
         ########################
-        sca.update_state(label_action[step], out_action)
-        label_action_text = f'Label gripper action:  {label_action[step]} ' \
+        out_score = tf.nn.softmax(out_action)
+        sca.update_state(label_action[step], out_score)
+        label_action_text = f'Label gripper action:  {int(label_action[step])} ' \
                             f'(0 := closed, 1 := open)... ACC {sca.result():.4f}'
         cv2.putText(img=display,
                     text=label_action_text,
@@ -246,7 +248,7 @@ def display_vis(network, network_info, obs_config):
                     color=(255, 255, 255),
                     thickness=2,
                     lineType=cv2.LINE_AA)
-        out_action_text = f'Output gripper action: {out_action} -> {np.argmax(out_action)}'
+        out_action_text = f'Output gripper action: {out_score} -> {int(np.argmax(out_score))}'
         cv2.putText(img=display,
                     text=out_action_text,
                     org=(width_offset, row_10),

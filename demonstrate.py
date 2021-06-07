@@ -11,6 +11,7 @@ from rlbench import RandomizeEvery
 from rlbench import VisualRandomizationConfig
 
 from utils.network_info import NetworkInfo
+from utils.utils import get_gripper_action
 from utils.utils import scale_panda_pose
 from utils.utils import blank_image_list
 from utils.utils import step_images
@@ -19,23 +20,6 @@ from config import EndToEndConfig
 from os.path import join
 import numpy as np
 import pickle
-
-
-# todo: verify that the values are in the correct positions
-def get_gripper_action(gripper_prediction: np.ndarray) -> int:
-    """
-    Takes the categorical output for the gripper and returns a single integer representing
-    the decision the network made.
-
-    :param gripper_prediction: Size 2 array describing the networks categorical prediction
-                               for if the gripper should be open or closed.
-
-    :return: 1 if the gripper should be open or 0 if the gripper should be closed
-    """
-    if gripper_prediction[0] > gripper_prediction[1]:
-        return 0
-    else:
-        return 1
 
 
 def get_image(obs: Observation, pov: str) -> np.ndarray:
@@ -132,8 +116,7 @@ def main():
         joint_action = prediction[0].flatten()
         joint_action = scale_panda_pose(joint_action, 'up')   # from [0, 1] to joint's proper values
 
-        gripper_action = prediction[1].flatten()
-        gripper_action = np.argmax(gripper_action)  # Selects index with the higher value
+        gripper_action = get_gripper_action(prediction[1].flatten())
 
         target_estimation = prediction[2].flatten()
 
