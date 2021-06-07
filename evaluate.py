@@ -86,7 +86,7 @@ def display_vis(network, network_info, obs_config):
     label_gripper = labels[3]
 
     width = 128 * network_info.num_images if 128 * network_info.num_images > 1024 else 1024
-    height = 800
+    height = 900
     blank = np.ones((height, width, 3)) * 0.1
 
     width_offset = 10
@@ -165,7 +165,7 @@ def display_vis(network, network_info, obs_config):
         ##############################
         # Row with the gripper input #
         ##############################
-        input_action_text = f'Input gripper action: {test_action[step]} (0 := closed, 1 := open))'
+        input_action_text = f'Input gripper action: {test_action[step]} (0 := closed, 1 := open)'
         cv2.putText(img=display,
                     text=input_action_text,
                     org=(width_offset, row_5),
@@ -180,7 +180,7 @@ def display_vis(network, network_info, obs_config):
         #########################################
         input_angle_text = ''
         input_angle_text = '[' + ', '.join([input_angle_text + f'{p:.3f}' for p in test_angles[step]]) + ']'
-        input_angle_text = f'Input joint angles: {input_angle_text})'
+        input_angle_text = f'Input joint angles: {input_angle_text}'
         cv2.putText(img=display,
                     text=input_angle_text,
                     org=(width_offset, row_6),
@@ -209,7 +209,7 @@ def display_vis(network, network_info, obs_config):
         angle_mse = rms(label_angles[step], out_angles).numpy()
         label_angle_text = ''
         label_angle_text = '[' + ', '.join([label_angle_text + f'{p:.3f}' for p in label_angles[step]]) + ']'
-        label_angle_text = f'Input joint angles:  {label_angle_text}... RMS {angle_mse:.4f}'
+        label_angle_text = f'Label joint angles:  {label_angle_text}... RMS {angle_mse:.4f}'
         cv2.putText(img=display,
                     text=label_angle_text,
                     org=(width_offset, row_7),
@@ -314,20 +314,32 @@ def display_vis(network, network_info, obs_config):
                     thickness=2,
                     lineType=cv2.LINE_AA)
 
-        ###################
-        # Bottom of image #
-        ###################
-        display_info = f'{network_info.network_name}. Demo {ep_num} from {dir_name}...' \
-                       f' On step {step} of {total_steps - 1}.'
+        #####################
+        # Network name info #
+        #####################
+        display_net_info = f'{network_info.network_name}. As {network_info.total_epochs} epochs ' \
+                           f'of {network_info.train_amount} training episodes.'
         cv2.putText(img=display,
-                    text=display_info,
-                    org=(width_offset, height - text_offset),
+                    text=display_net_info,
+                    org=(width_offset, height - text_offset*2),
                     fontFace=font,
                     fontScale=0.66,
                     color=(255, 255, 255),
                     thickness=2,
                     lineType=cv2.LINE_AA)
 
+        ################
+        # Episode info #
+        ################
+        display_ep_info = f'Demo {ep_num} from {dir_name}... On step {step} of {total_steps - 1}.'
+        cv2.putText(img=display,
+                    text=display_ep_info,
+                    org=(width_offset, height - text_offset),
+                    fontFace=font,
+                    fontScale=0.66,
+                    color=(255, 255, 255),
+                    thickness=2,
+                    lineType=cv2.LINE_AA)
         display = display[:, :, [2, 1, 0]]  # OpenCV uses BGR, images saved as RGB. Must convert.
         cv2.imshow('Display', display)
         cv2.waitKey(1)
