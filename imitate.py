@@ -1,3 +1,5 @@
+import os
+
 from rlbench.observation_config import ObservationConfig
 
 from tensorflow.keras.callbacks import ModelCheckpoint
@@ -27,6 +29,40 @@ import numpy as np
 import pickle
 import time
 import gc
+
+
+def training_generator(order: List[int], network_info: NetworkInfo, obs_config: ObservationConfig):
+    ep_per_update = 2
+    num_updates = np.ciel(len(order) / ep_per_update)
+    gen_array = np.pad(order,
+                       (0, num_updates*ep_per_update - len(order)),
+                       constant_values=np.nan).reshape(num_updates, ep_per_update)
+
+    for update in range(num_updates):
+        inputs = [[], [], []]
+        labels = [[], [], [], []]
+        for episode in range(ep_per_update):
+            if gen_array[update][episode] is not np.nan:
+                try:
+                    _inputs, _labels = split_data(format_data(load_data(network_info.train_dir,
+                                                                        order[ep],
+                                                                        obs_config),
+                                                              pov=network_info.pov
+                                                              ),
+                                                  num_images=network_info.num_images,
+                                                  pov=network_info.pov)
+
+                    inputs = [i + _i for i, _i in zip(inputs, _inputs)]
+                    labels = [l + _l for l, _l in zip(labels, _labels)]
+
+
+                except (FileNotFoundError, IndexError) as E:
+                    print(f'[Warn] Received {E}: Reached end of dataset. Using {episode} episodes per '
+                          f'network update instead of the {ep_per_update} usually used')
+                    break
+
+        yield inputs, labels
+
 
 
 def train_new(config: EndToEndConfig) -> None:
@@ -142,62 +178,12 @@ def train(network: Model,
 
     start_time = time.perf_counter()
 
-    while episode_count <= total_episodes:
-        train_angles = []
-        train_action = []
-        train_images = []
-
-        label_angles = []
-        label_action = []
-        label_target = []
-        label_gripper = []
-
-        for episode in range(episodes_per_update):
-            try:
-                inputs, labels = split_data(format_data(load_data(network_info.train_dir,
-                                                                  train_order[episode_count],
-                                                                  obs_config),
-                                                        pov=network_info.pov
-                                                        ),
-                                            num_images=network_info.num_images,
-                                            pov=network_info.pov)
-                train_angles += inputs[0]
-                train_action += inputs[1]
-                train_images += inputs[2]
-
-                label_angles += labels[0]
-                label_action += labels[1]
-                label_target += labels[2]
-                label_gripper += labels[3]
-
-                steps += len(inputs[0])
-                episode_count += 1
-            except (FileNotFoundError, IndexError) as E:
-                print(f'[Warn] Received {E}: Reached end of dataset. Using {episode} episodes per '
-                      f'network update instead of the {episodes_per_update} usually used')
-                break
-
-        h = network.fit(x=[np.asarray(train_angles),
-                           np.asarray(train_action),
-                           np.asarray(train_images)],
-                        y=[np.asarray(label_angles),
-                           np.asarray(label_action),
-                           np.asarray(label_target),
-                           np.asarray(label_gripper)],
-                        batch_size=len(train_angles),  # Gradient update after seeing all data in step
-                        verbose=0,
-                        shuffle=False,
-                        epochs=1,  # Epochs are already handled by train_order
-                        )
-
-        if virtual_memory().percent > memory_percent_threshold:
-            free_memory(memory_percent_threshold)
-
-        if episode_count % display_every == 0 or episode_count == episodes_per_update:
-            h.history['steps'] = [steps + prev_last_step]
-            train_performance.append(h.history)
-            display_update(network_info=network_info, episode_count=episode_count,
-                           total_episodes=total_episodes, start_time=start_time)
+    h = network.fit(x=training_generator(train_order, network_info, obs_config),
+                    verbose=0,
+                    shuffle=False,
+                    epochs=1,  # Epochs are already handled by train_order
+                    workers=os.cpu_count(),
+                    use_multiprocessing=True,)
 
     free_memory()
 

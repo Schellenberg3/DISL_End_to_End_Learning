@@ -542,8 +542,8 @@ def blank_image_list(num_images: int) -> List[np.ndarray]:
 
 
 def split_data(episode: Demo, num_images: int = 4, pov: str = 'front') -> \
-        Tuple[Tuple[List[np.ndarray], List[int], List[np.ndarray]],
-              Tuple[List[np.ndarray], List[int], List[np.ndarray], List[np.ndarray]]]:
+        Tuple[List[np.ndarray, np.ndarray, np.ndarray],
+              List[np.ndarray, np.ndarray, np.ndarray, np.ndarray]]:
     """ Takes an episode and splits it into the joint data (including gripper), the depth image,
     and the next position (ground truth label). Returns a list with the values for each
     of these at evey step in the episode.
@@ -606,8 +606,8 @@ def split_data(episode: Demo, num_images: int = 4, pov: str = 'front') -> \
             label_angles.append(episode[step].joint_positions)
             label_action.append(episode[step].gripper_open)
 
-    inputs = (angles, action, images)
-    labels = (label_angles, label_action, label_target, label_gripper)
+    inputs = [np.array(angles), np.array(action), np.array(images)]
+    labels = [np.array(label_angles), np.array(label_action), np.array(label_target), np.array(label_gripper)]
 
     return inputs, labels
 
