@@ -30,39 +30,30 @@ import pickle
 import time
 import gc
 
-
-def training_generator(order: List[int], network_info: NetworkInfo, obs_config: ObservationConfig):
-    ep_per_update = 2
-    num_updates = np.ciel(len(order) / ep_per_update)
-    gen_array = np.pad(order,
-                       (0, num_updates*ep_per_update - len(order)),
-                       constant_values=np.nan).reshape(num_updates, ep_per_update)
-
-    for update in range(num_updates):
-        inputs = [[], [], []]
-        labels = [[], [], [], []]
-        for episode in range(ep_per_update):
-            if gen_array[update][episode] is not np.nan:
-                try:
-                    _inputs, _labels = split_data(format_data(load_data(network_info.train_dir,
-                                                                        order[ep],
-                                                                        obs_config),
-                                                              pov=network_info.pov
-                                                              ),
-                                                  num_images=network_info.num_images,
-                                                  pov=network_info.pov)
-
-                    inputs = [i + _i for i, _i in zip(inputs, _inputs)]
-                    labels = [l + _l for l, _l in zip(labels, _labels)]
+from multiprocessing import Queue
+from multiprocessing import Process
+import multiprocessing
 
 
-                except (FileNotFoundError, IndexError) as E:
-                    print(f'[Warn] Received {E}: Reached end of dataset. Using {episode} episodes per '
-                          f'network update instead of the {ep_per_update} usually used')
-                    break
-
-        yield inputs, labels
-
+def episode_loader(train_queue: Queue, episode_queue: Queue, network_info: NetworkInfo, obs_config: ObservationConfig):
+    while True:
+        if train_queue.qsize() < 5:
+            if episode_queue.empty():
+                break
+            else:
+                print('putting data in queue')
+                episode_num = episode_queue.get()
+                train_queue.put(split_data(format_data(load_data(network_info.train_dir,
+                                                                 episode_num,
+                                                                 obs_config),
+                                                       pov=network_info.pov
+                                                       ),
+                                           num_images=network_info.num_images,
+                                           pov=network_info.pov
+                                           )
+                                )
+                print('data in queue')
+        time.sleep(0.05)
 
 
 def train_new(config: EndToEndConfig) -> None:
@@ -166,6 +157,19 @@ def train(network: Model,
 
     memory_percent_threshold = 70
 
+    train_queue = Queue()
+    episode_queue = Queue()
+
+    for ep in train_order:
+        train_queue.put(ep)
+
+    num_loaders = 1
+    proc = []
+    for loader in range(num_loaders):
+        proc.append(Process(target=episode_loader,
+                            args=(train_queue, episode_queue, network_info, obs_config)))
+    [p.start() for p in proc]
+
     #################
     # Training loop #
     #################
@@ -177,13 +181,20 @@ def train(network: Model,
     input('\nReady to begin training. Press enter to proceed...')
 
     start_time = time.perf_counter()
-
-    h = network.fit(x=training_generator(train_order, network_info, obs_config),
-                    verbose=0,
-                    shuffle=False,
-                    epochs=1,  # Epochs are already handled by train_order
-                    workers=os.cpu_count(),
-                    use_multiprocessing=True,)
+    for i in range(len(train_order)):
+        while train_queue.empty():
+            print('waiting for data')
+            time.sleep(0.01)
+        print(f'getting data.. {train_queue.qsize()}')
+        inputs, labels = train_queue.get()
+        print('got data')
+        h = network.fit(x=inputs,
+                        y=labels,
+                        verbose=0,
+                        shuffle=False,
+                        epochs=1,  # Epochs are already handled by train_order
+                        workers=os.cpu_count(),
+                        use_multiprocessing=True,)
 
     free_memory()
 
@@ -191,6 +202,8 @@ def train(network: Model,
     training_time = format_time(end_time - start_time)
 
     print(f'[Info] Finished training model. Training took {training_time}.')
+
+    [p.join() for p in proc]
 
     ####################
     # Save the network #
