@@ -128,10 +128,6 @@ def train(network: Model,
     # How many episodes should the network see before back propagation
     episodes_per_update = 2
 
-    checkpoint_callback = ModelCheckpoint(filepath='',
-                                          save_weights_only=False,
-                                          save_freq=100_000_000)
-
     memory_percent_threshold = 70
 
     #################
@@ -192,7 +188,6 @@ def train(network: Model,
                         verbose=0,
                         shuffle=False,
                         epochs=1,  # Epochs are already handled by train_order
-                        callbacks=[checkpoint_callback]
                         )
 
         if virtual_memory().percent > memory_percent_threshold:

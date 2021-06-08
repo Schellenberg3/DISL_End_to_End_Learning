@@ -7,15 +7,16 @@ from tensorflow.keras.layers import Dense
 from tensorflow.keras.layers import LSTM
 from tensorflow.keras.layers import Concatenate
 from tensorflow.keras.layers import Reshape
+from tensorflow.keras.layers import Softmax
 
 from tensorflow.keras.models import Model
 
 from tensorflow.keras.losses import MeanSquaredError
 from tensorflow.keras.losses import CosineSimilarity
-from tensorflow.keras.losses import SparseCategoricalCrossentropy
+from tensorflow.keras.losses import CategoricalCrossentropy
 
 from tensorflow.keras.metrics import RootMeanSquaredError
-from tensorflow.keras.metrics import SparseCategoricalAccuracy
+from tensorflow.keras.metrics import CategoricalAccuracy
 
 # Todo find a better way to handle these conditional imports
 try:
@@ -133,8 +134,8 @@ class NetworkBuilder(object):
 
         output_joints = Dense(self._num_joints, activation="linear",
                               name='output_joints')(z)   # Joint values (e.g. angles or velocity), continuous
-        output_action = Dense(2, activation="linear",
-                              name='output_action')(z)   # Gripper action, categorical with two values: open or close
+        output_action = Dense(2, activation="linear",)(z)
+        output_action = Softmax(name='output_action')(output_action)    # Gripper action, categorical with
         output_target = Dense(3, activation="linear",
                               name='output_target')(z)   # Target (e.g. a cup) Cartesian position, continuous
         output_gripper = Dense(3, activation="linear",
@@ -149,13 +150,13 @@ class NetworkBuilder(object):
                                  output_gripper])
 
         network.compile(optimizer='adam',
-                        loss={'output_joints': CosineSimilarity(),
-                              'output_action': SparseCategoricalCrossentropy(from_logits=False),
+                        loss={'output_joints': MeanSquaredError(),
+                              'output_action': MeanSquaredError(),
                               'output_target': MeanSquaredError(),
                               'output_gripper': MeanSquaredError(),
                               },
                         metrics={'output_joints': RootMeanSquaredError(),
-                                 'output_action': SparseCategoricalAccuracy(),
+                                 'output_action': CategoricalAccuracy(),
                                  'output_target': RootMeanSquaredError(),
                                  'output_gripper': RootMeanSquaredError(),
                                  },

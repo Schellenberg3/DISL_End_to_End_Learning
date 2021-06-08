@@ -15,7 +15,9 @@ from typing import Union
 
 from PIL import Image
 
+import tensorflow as tf
 import numpy as np
+
 import pickle
 import shutil
 import random
@@ -413,7 +415,7 @@ def format_data(episode: Demo, pov: Union[List[str], str]) -> Demo:
         if wrist:
             episode[step].wrist_rgb = episode[step].wrist_rgb / 255
 
-        episode[step].joint_positions = scale_pose_down(episode[step].joint_positions)
+        episode[step].joint_positions = scale_panda_pose(episode[step].joint_positions, 'down')
 
     return episode
 
@@ -597,14 +599,19 @@ def split_data(episode: Demo, num_images: int = 4, pov: str = 'front') -> \
         #       The dataset records (X,Y,Z,Qx,Qy,Qz,Qw) but we only want (X,Y,Z) for now
         label_target.append(episode[step].task_low_dim_state[0][:3])
         label_gripper.append(episode[step].task_low_dim_state[-1][:3])
+        array_action = np.zeros(2)
         try:
             label_angles.append(episode[step + 1].joint_positions)
-            label_action.append(episode[step + 1].gripper_open)
+            next_action = episode[step + 1].gripper_open
         except IndexError:
             label_angles.append(episode[step].joint_positions)
-            label_action.append(episode[step].gripper_open)
+            next_action = episode[step].gripper_open
+        array_action[int(next_action)] = 1
+        label_action.append(array_action.copy())
 
     inputs = (angles, action, images)
     labels = (label_angles, label_action, label_target, label_gripper)
 
     return inputs, labels
+
+
