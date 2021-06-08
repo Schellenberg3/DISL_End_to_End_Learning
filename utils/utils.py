@@ -599,12 +599,15 @@ def split_data(episode: Demo, num_images: int = 4, pov: str = 'front') -> \
         #       The dataset records (X,Y,Z,Qx,Qy,Qz,Qw) but we only want (X,Y,Z) for now
         label_target.append(episode[step].task_low_dim_state[0][:3])
         label_gripper.append(episode[step].task_low_dim_state[-1][:3])
+        array_action = np.zeros(2)
         try:
             label_angles.append(episode[step + 1].joint_positions)
-            label_action.append(episode[step + 1].gripper_open)
+            next_action = episode[step + 1].gripper_open
         except IndexError:
             label_angles.append(episode[step].joint_positions)
-            label_action.append(episode[step].gripper_open)
+            next_action = episode[step].gripper_open
+        array_action[int(next_action)] = 1
+        label_action.append(array_action.copy())
 
     inputs = (angles, action, images)
     labels = (label_angles, label_action, label_target, label_gripper)

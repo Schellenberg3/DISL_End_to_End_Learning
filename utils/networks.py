@@ -13,10 +13,10 @@ from tensorflow.keras.models import Model
 
 from tensorflow.keras.losses import MeanSquaredError
 from tensorflow.keras.losses import CosineSimilarity
-from tensorflow.keras.losses import SparseCategoricalCrossentropy
+from tensorflow.keras.losses import CategoricalCrossentropy
 
 from tensorflow.keras.metrics import RootMeanSquaredError
-from tensorflow.keras.metrics import SparseCategoricalAccuracy
+from tensorflow.keras.metrics import CategoricalAccuracy
 
 # Todo find a better way to handle these conditional imports
 try:
@@ -151,12 +151,12 @@ class NetworkBuilder(object):
 
         network.compile(optimizer='adam',
                         loss={'output_joints': MeanSquaredError(),
-                              'output_action': SparseCategoricalCrossentropy(from_logits=False),
+                              'output_action': MeanSquaredError(),
                               'output_target': MeanSquaredError(),
                               'output_gripper': MeanSquaredError(),
                               },
                         metrics={'output_joints': RootMeanSquaredError(),
-                                 'output_action': SparseCategoricalAccuracy(),
+                                 'output_action': CategoricalAccuracy(),
                                  'output_target': RootMeanSquaredError(),
                                  'output_gripper': RootMeanSquaredError(),
                                  },

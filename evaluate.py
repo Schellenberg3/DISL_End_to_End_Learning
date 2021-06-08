@@ -1,6 +1,6 @@
 from rlbench.observation_config import ObservationConfig
 
-from tensorflow.keras.metrics import SparseCategoricalAccuracy
+from tensorflow.keras.metrics import CategoricalAccuracy
 from tensorflow.keras.metrics import RootMeanSquaredError
 from tensorflow.keras.models import load_model
 from tensorflow.keras import Model
@@ -111,8 +111,8 @@ def display_vis(network, network_info, obs_config):
     font = cv2.FONT_HERSHEY_SIMPLEX
 
     rms = RootMeanSquaredError()
-    sca = SparseCategoricalAccuracy()
-    sca.reset_states()
+    ca = CategoricalAccuracy()
+    ca.reset_states()
 
     step = 0
     total_steps = len(test_angles)
@@ -236,9 +236,9 @@ def display_vis(network, network_info, obs_config):
         # - label action       #
         # - predicted action   #
         ########################
-        sca.update_state(label_action[step], out_action)
-        label_action_text = f'Label gripper action:  {int(label_action[step])} ' \
-                            f'(0 := closed, 1 := open)... ACC {sca.result():.4f}'
+        ca.update_state(label_action[step], out_action)
+        label_action_text = f'Label gripper action:  {label_action[step]} -> {int(np.argmax(label_action[step]))} ' \
+                            f'(0 := closed, 1 := open)... ACC {ca.result():.4f}'
         cv2.putText(img=display,
                     text=label_action_text,
                     org=(width_offset, row_9),
