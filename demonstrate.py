@@ -116,7 +116,7 @@ def main():
         joint_action = prediction[0].flatten()
         joint_action = scale_panda_pose(joint_action, 'up')   # from [0, 1] to joint's proper values
 
-        gripper_action = get_gripper_action(prediction[1].flatten())
+        gripper_action = np.argmax(prediction[1].flatten())
 
         target_estimation = prediction[2].flatten()
 

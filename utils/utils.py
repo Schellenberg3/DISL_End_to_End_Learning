@@ -612,14 +612,3 @@ def split_data(episode: Demo, num_images: int = 4, pov: str = 'front') -> \
     return inputs, labels
 
 
-def get_gripper_action(gripper_prediction: np.ndarray) -> Union[float, int, np.ndarray]:
-    """
-    Takes the output array from the gripper portion of the network and performs
-    softmax then argmax to identify the selected category.
-
-    :param gripper_prediction: Size 2 array describing the networks categorical prediction
-                               for if the gripper should be open or closed.
-
-    :return: 1 if the gripper should be open or 0 if the gripper should be closed. Integer value.
-    """
-    return np.argmax(tf.nn.softmax(gripper_prediction))

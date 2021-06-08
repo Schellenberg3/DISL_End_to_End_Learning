@@ -7,6 +7,7 @@ from tensorflow.keras.layers import Dense
 from tensorflow.keras.layers import LSTM
 from tensorflow.keras.layers import Concatenate
 from tensorflow.keras.layers import Reshape
+from tensorflow.keras.layers import Softmax
 
 from tensorflow.keras.models import Model
 
@@ -133,8 +134,8 @@ class NetworkBuilder(object):
 
         output_joints = Dense(self._num_joints, activation="linear",
                               name='output_joints')(z)   # Joint values (e.g. angles or velocity), continuous
-        output_action = Dense(2, activation="linear",
-                              name='output_action')(z)   # Gripper action, categorical with two values: open or close
+        output_action = Dense(2, activation="linear",)(z)
+        output_action = Softmax(name='output_action')(output_action)    # Gripper action, categorical with
         output_target = Dense(3, activation="linear",
                               name='output_target')(z)   # Target (e.g. a cup) Cartesian position, continuous
         output_gripper = Dense(3, activation="linear",
