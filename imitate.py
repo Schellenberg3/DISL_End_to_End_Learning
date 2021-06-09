@@ -2,7 +2,6 @@ import os
 
 from rlbench.observation_config import ObservationConfig
 
-from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.backend import clear_session
 from tensorflow.keras.models import load_model
 from tensorflow.keras.utils import plot_model
@@ -24,6 +23,7 @@ from typing import Dict
 from typing import Union
 from os.path import join
 from os import listdir
+from os import getpid
 
 import numpy as np
 import pickle
@@ -31,19 +31,20 @@ import time
 import gc
 
 from multiprocessing import Queue
+from queue import Empty
 from multiprocessing import Process
-import multiprocessing
 
 
 def episode_loader(train_queue: Queue, episode_queue: Queue, network_info: NetworkInfo, obs_config: ObservationConfig):
     while True:
-        if train_queue.qsize() < 5:
-            if episode_queue.empty():
+        if episode_queue.qsize() < 5:
+            if train_queue.empty():
+                # print(f'{getpid()}: Reached last element of training queue')
                 break
             else:
-                print('putting data in queue')
-                episode_num = episode_queue.get()
-                train_queue.put(split_data(format_data(load_data(network_info.train_dir,
+                episode_num = train_queue.get()
+                start = time.perf_counter()
+                episode_queue.put(split_data(format_data(load_data(network_info.train_dir,
                                                                  episode_num,
                                                                  obs_config),
                                                        pov=network_info.pov
@@ -52,7 +53,7 @@ def episode_loader(train_queue: Queue, episode_queue: Queue, network_info: Netwo
                                            pov=network_info.pov
                                            )
                                 )
-                print('data in queue')
+                # print(f'{getpid()}: data for {episode_num} in queue took {time.perf_counter() - start} seconds')
         time.sleep(0.05)
 
 
@@ -163,12 +164,15 @@ def train(network: Model,
     for ep in train_order:
         train_queue.put(ep)
 
-    num_loaders = 1
+    print(f'Train queue size = {train_queue.qsize()} == {len(train_order)}')
+
+    num_loaders = 2
     proc = []
     for loader in range(num_loaders):
         proc.append(Process(target=episode_loader,
                             args=(train_queue, episode_queue, network_info, obs_config)))
     [p.start() for p in proc]
+    print('Started loader processes')
 
     #################
     # Training loop #
@@ -182,19 +186,22 @@ def train(network: Model,
 
     start_time = time.perf_counter()
     for i in range(len(train_order)):
-        while train_queue.empty():
-            print('waiting for data')
-            time.sleep(0.01)
-        print(f'getting data.. {train_queue.qsize()}')
-        inputs, labels = train_queue.get()
-        print('got data')
-        h = network.fit(x=inputs,
-                        y=labels,
-                        verbose=0,
-                        shuffle=False,
-                        epochs=1,  # Epochs are already handled by train_order
-                        workers=os.cpu_count(),
-                        use_multiprocessing=True,)
+        start = time.perf_counter()
+        try:
+            # print(f'getting data.. {episode_queue.qsize()}')
+            inputs, labels = episode_queue.get()
+            # print('got data')
+            h = network.fit(x=inputs,
+                            y=labels,
+                            verbose=0,
+                            shuffle=False,
+                            epochs=1,  # Epochs are already handled by train_order
+                            workers=os.cpu_count(),
+                            use_multiprocessing=True,)
+            # print(f'Loop {i}: took {time.perf_counter() - start} seconds.')
+        except Empty:
+            # print('waiting for data')
+            time.sleep(0.1)
 
     free_memory()
 
