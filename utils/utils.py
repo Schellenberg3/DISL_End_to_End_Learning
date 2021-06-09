@@ -541,6 +541,28 @@ def blank_image_list(num_images: int) -> List[np.ndarray]:
     return images
 
 
+def get_wrist_rgbd(episode: Demo, step: int) -> np.ndarray:
+    """
+    Getter for an episodes wrist image as 128x128x4 matrix. Called by split_data().
+
+    :param episode: Episode to load a wrist image from
+    :param step:    Time step of image
+    """
+    return np.dstack((episode[step].wrist_rgb,
+                      episode[step].wrist_depth))
+
+
+def get_front_rgbd(episode: Demo, step: int) -> np.ndarray:
+    """
+    Getter for an episodes front image as 128x128x4 matrix. Called by split_data().
+
+    :param episode: Episode to load a front image from
+    :param step:    Time step of image
+    """
+    return np.dstack((episode[step].front_rgb,
+                      episode[step].front_depth))
+
+
 def split_data(episode: Demo, num_images: int = 4, pov: str = 'front') -> \
         Tuple[List[np.ndarray], List[np.ndarray]]:
     """ Takes an episode and splits it into the joint data (including gripper), the depth image,
@@ -566,17 +588,18 @@ def split_data(episode: Demo, num_images: int = 4, pov: str = 'front') -> \
     label_target = []   # True position of the target object (e.g. a cup)
     label_gripper = []  # True position of the robot's gripper
 
+    if pov == 'wrist':
+        get_image = get_wrist_rgbd
+    elif pov == 'front':
+        get_image = get_front_rgbd
+    else:
+        print(f'Invalid point ov view in split data')
+        get_image = get_front_rgbd
+
     for step in range(len(episode)):
-        if pov == 'wrist':
-            image = np.dstack((episode[step].wrist_rgb,
-                               episode[step].wrist_depth))
-        elif pov == 'front':
-            image = np.dstack((episode[step].front_rgb,
-                               episode[step].front_depth))
 
-        image_list = step_images(image_list=image_list,
-                                 new_image=image)
-
+        image = get_image(episode, step)
+        image_list = step_images(image_list=image_list, new_image=image)
         image_stack = np.dstack(image_list)
 
         #########################################################
