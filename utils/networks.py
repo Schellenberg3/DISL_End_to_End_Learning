@@ -18,6 +18,8 @@ from tensorflow.keras.losses import CategoricalCrossentropy
 from tensorflow.keras.metrics import RootMeanSquaredError
 from tensorflow.keras.metrics import CategoricalAccuracy
 
+from tensorflow.keras.optimizers import  Adam
+
 # Todo find a better way to handle these conditional imports
 try:
     from utils.network_info import NetworkInfo
@@ -149,7 +151,8 @@ class NetworkBuilder(object):
                                  output_target,
                                  output_gripper])
 
-        network.compile(optimizer='adam',
+        opt = Adam(learning_rate=0.0001)
+        network.compile(optimizer=opt,
                         loss={'output_joints': MeanSquaredError(),
                               'output_action': MeanSquaredError(),
                               'output_target': MeanSquaredError(),
