@@ -1,6 +1,7 @@
+import os
+
 from rlbench.observation_config import ObservationConfig
 
-from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.backend import clear_session
 from tensorflow.keras.models import load_model
 from tensorflow.keras.utils import plot_model
@@ -22,11 +23,50 @@ from typing import Dict
 from typing import Union
 from os.path import join
 from os import listdir
+from os import getpid
 
 import numpy as np
 import pickle
 import time
 import gc
+
+from multiprocessing import Queue
+from multiprocessing import Process
+
+
+def episode_loader(train_queue: Queue, episode_queue: Queue, network_info: NetworkInfo, obs_config: ObservationConfig,
+                   queue_amount: int = 5):
+    """
+    Target for multiprocessing in the main thread during train() that populates the episode queue with
+    data for training.
+
+    :param train_queue:   Queue containing integer values that represent what episodes to load and the order.
+                          This is essentially a copy of the train_order list that each process can pull from.
+    :param episode_queue: Queue to store the training data and labels in once the information has been loaded
+                          from disk, formatted, and split. Because of the load time the exact order of episodes in
+                          the list may not match the order in train_queue exactly.
+    :param network_info:  NetworkInfo object for the network.
+    :param obs_config:    RLBench observation configuration.
+    :param queue_amount:  Minimum number of episodes to keep in queue. The actual number of episodes in the
+                          queue will vary between this and (roughly) queue_amount + the number of episode_loader
+                          processes.
+    """
+    while True:
+        if episode_queue.qsize() < queue_amount:
+            if train_queue.empty():
+                break
+            else:
+                episode_queue.put(split_data(format_data(load_data(network_info.train_dir,
+                                                                   train_queue.get(),
+                                                                   obs_config),
+                                                         pov=network_info.pov
+                                                         ),
+                                             num_images=network_info.num_images,
+                                             pov=network_info.pov
+                                             )
+                                  )
+        time.sleep(0.05)
+    print(f'[Info] Episode loader reached last element of training queue. PID: {getpid()}')
 
 
 def train_new(config: EndToEndConfig) -> None:
@@ -114,21 +154,38 @@ def train(network: Model,
     train_order = get_order(network_info.train_amount,
                             network_info.train_available,
                             network_info.epochs_to_train)
-    total_episodes = len(train_order) - 1
-    episode_count = 0
+    total_episodes = len(train_order)
 
     steps = 0  # Counter for number of steps in each episode
 
-    display_every = int(np.ceil((total_episodes + 1)/100))
+    display_every = int(np.ceil(total_episodes/100))
+    display_next = 0
 
     train_performance = []
 
     prev_last_step = prev_train_performance[-1, -1] if prev_train_performance is not None else 0
 
-    # How many episodes should the network see before back propagation
-    episodes_per_update = 2
-
     memory_percent_threshold = 70
+
+    ##############################
+    # Set up the multiprocessing #
+    ##############################
+    num_loaders = 3  # 3 processes seems to work well for loading data
+    queue_size = 20  # 20 episodes in the queue seems to work well
+
+    train_queue = Queue()
+    episode_queue = Queue()
+
+    for ep in train_order:
+        # Copying the list to a queue is definitely not ideal... but since its a list of integers even
+        # training on 12k episodes for 5 epochs took less than 0.1 sec so we'll deal with this later.
+        train_queue.put(ep)
+
+    proc = []
+    for loader in range(num_loaders):
+        proc.append(Process(target=episode_loader,
+                            args=(train_queue, episode_queue, network_info, obs_config, queue_size)))
+    [p.start() for p in proc]
 
     #################
     # Training loop #
@@ -140,71 +197,38 @@ def train(network: Model,
 
     input('\nReady to begin training. Press enter to proceed...')
 
+    print(f'\n[Info] Preloading queue with {queue_size} episodes...')
+    while episode_queue.qsize() < queue_size:
+        time.sleep(0.1)
+
+    print('\n[info] Beginning training loop...')
     start_time = time.perf_counter()
-
-    while episode_count <= total_episodes:
-        train_angles = []
-        train_action = []
-        train_images = []
-
-        label_angles = []
-        label_action = []
-        label_target = []
-        label_gripper = []
-
-        for episode in range(episodes_per_update):
-            try:
-                inputs, labels = split_data(format_data(load_data(network_info.train_dir,
-                                                                  train_order[episode_count],
-                                                                  obs_config),
-                                                        pov=network_info.pov
-                                                        ),
-                                            num_images=network_info.num_images,
-                                            pov=network_info.pov)
-                train_angles += inputs[0]
-                train_action += inputs[1]
-                train_images += inputs[2]
-
-                label_angles += labels[0]
-                label_action += labels[1]
-                label_target += labels[2]
-                label_gripper += labels[3]
-
-                steps += len(inputs[0])
-                episode_count += 1
-            except (FileNotFoundError, IndexError) as E:
-                print(f'[Warn] Received {E}: Reached end of dataset. Using {episode} episodes per '
-                      f'network update instead of the {episodes_per_update} usually used')
-                break
-
-        h = network.fit(x=[np.asarray(train_angles),
-                           np.asarray(train_action),
-                           np.asarray(train_images)],
-                        y=[np.asarray(label_angles),
-                           np.asarray(label_action),
-                           np.asarray(label_target),
-                           np.asarray(label_gripper)],
-                        batch_size=len(train_angles),  # Gradient update after seeing all data in step
-                        verbose=0,
+    i = 0
+    while not episode_queue.empty():
+        i += 1
+        inputs, labels = episode_queue.get()
+        steps += len(inputs[0])
+        h = network.fit(x=inputs,
+                        y=labels,
                         shuffle=False,
                         epochs=1,  # Epochs are already handled by train_order
-                        )
-
+                        verbose=0,)
+        if i > display_next:
+            display_next += display_every
+            h.history['steps'] = [steps + prev_last_step]
+            train_performance.append(h.history)
+            display_update(network_info, i, start_time, total_episodes)
         if virtual_memory().percent > memory_percent_threshold:
             free_memory(memory_percent_threshold)
 
-        if episode_count % display_every == 0 or episode_count == episodes_per_update:
-            h.history['steps'] = [steps + prev_last_step]
-            train_performance.append(h.history)
-            display_update(network_info=network_info, episode_count=episode_count,
-                           total_episodes=total_episodes, start_time=start_time)
-
     free_memory()
 
-    end_time = time.perf_counter()
-    training_time = format_time(end_time - start_time)
+    print(f'[Info] Finished training model. Training took {format_time(time.perf_counter() - start_time)}.')
 
-    print(f'[Info] Finished training model. Training took {training_time}.')
+    if not (train_queue.empty() and episode_queue.empty()):
+        print(f'\n[WARN] After training {train_queue.qsize()} episodes were left in train_queue and '
+              f'not loaded for training OR {episode_queue.qsize()} episodes were loaded into episode '
+              f'queue but not trained on. Model will be still be saved but the episode count may be inaccurate.')
 
     ####################
     # Save the network #
@@ -237,6 +261,8 @@ def train(network: Model,
                          network_info=network_info,
                          network_save_dir=network_save_dir,
                          obs_config=obs_config)
+
+    [p.join() for p in proc]
 
     print(f'\n[Info] Successfully exiting program.')
 
@@ -288,8 +314,8 @@ def display_update(network_info: NetworkInfo, episode_count: int, start_time: fl
     :param start_time:     Time at which the network training began
     :param total_episodes: Total number of episodes (including repeats) that will be loaded from memory for training
     """
-    print(f'[Info] {episode_count / (total_episodes + 1) * 100:3.1f}% Complete '
-          f'{format_time((time.perf_counter() - start_time) * (total_episodes - episode_count + 1) / episode_count)} '
+    print(f'[Info] {episode_count / (total_episodes) * 100:3.1f}% Complete '
+          f'{format_time((time.perf_counter() - start_time) * (total_episodes - episode_count) / episode_count)} '
           f'remaining. Trained through episode '
           f'{episode_count - network_info.train_amount * int((episode_count - 1) / network_info.train_amount)} '
           f'of {network_info.train_amount} in epoch '

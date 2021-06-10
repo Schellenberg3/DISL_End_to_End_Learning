@@ -85,7 +85,7 @@ image_net = Model(input_depth_history, image_net)
 combined = Concatenate()([input_gripper_state, input_joint_angles, image_net.output])
 
 
-z = Reshape((1, combined.shape[1]))(combined)
+z = Reshape((1, combined.shape[-1]))(combined)
 z = LSTM(128)(z)
 z = Dense(128, activation="relu")(z)
 
