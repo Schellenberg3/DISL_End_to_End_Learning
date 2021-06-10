@@ -564,7 +564,7 @@ def get_front_rgbd(episode: Demo, step: int) -> np.ndarray:
 
 
 def split_data(episode: Demo, num_images: int = 4, pov: str = 'front') -> \
-        Tuple[List[np.ndarray], List[np.ndarray]]:
+        Tuple[List[List], List[List]]:
     """ Takes an episode and splits it into the joint data (including gripper), the depth image,
     and the next position (ground truth label). Returns a list with the values for each
     of these at evey step in the episode.
@@ -631,8 +631,8 @@ def split_data(episode: Demo, num_images: int = 4, pov: str = 'front') -> \
         array_action[int(next_action)] = 1
         label_action.append(array_action.copy())
 
-    inputs = [np.array(angles), np.array(action), np.array(images)]
-    labels = [np.array(label_angles), np.array(label_action), np.array(label_target), np.array(label_gripper)]
+    inputs = [angles, action, images]
+    labels = [label_angles, label_action, label_target,label_gripper]
 
     return inputs, labels
 

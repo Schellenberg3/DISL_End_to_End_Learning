@@ -32,10 +32,13 @@ import gc
 
 from multiprocessing import Queue
 from multiprocessing import Process
+from queue import Empty
+
+import asyncio
 
 
 def episode_loader(train_queue: Queue, episode_queue: Queue, network_info: NetworkInfo, obs_config: ObservationConfig,
-                   queue_amount: int = 5):
+                   queue_amount: int = 5, ep_per_update: int = 1):
     """
     Target for multiprocessing in the main thread during train() that populates the episode queue with
     data for training.
@@ -48,25 +51,45 @@ def episode_loader(train_queue: Queue, episode_queue: Queue, network_info: Netwo
     :param network_info:  NetworkInfo object for the network.
     :param obs_config:    RLBench observation configuration.
     :param queue_amount:  Minimum number of episodes to keep in queue. The actual number of episodes in the
-                          queue will vary between this and (roughly) queue_amount + the number of episode_loader
+                          queue will vary between this and (roughly) queue_amount + the number of
+                          episode_loaders*ep_per_update
                           processes.
+    :param ep_per_update: Number of episodes to combine into one update.
     """
+    exit_while = False
     while True:
         if episode_queue.qsize() < queue_amount:
-            if train_queue.empty():
-                break
-            else:
-                episode_queue.put(split_data(format_data(load_data(network_info.train_dir,
-                                                                   train_queue.get(),
-                                                                   obs_config),
-                                                         pov=network_info.pov
-                                                         ),
-                                             num_images=network_info.num_images,
-                                             pov=network_info.pov
-                                             )
-                                  )
-        time.sleep(0.05)
-    print(f'[Info] Episode loader reached last element of training queue. PID: {getpid()}')
+            inputs = [[], [], []]
+            labels = [[], [], [], []]
+            ep_count = 0  # Ensures we don't accidentally return the 'empty' information
+            for ep in range(ep_per_update):
+                try:
+                    # Attempts to pull from train_queue, blocking for a few seconds and going to the except
+                    # statement if nothing is returned in that time.
+                    _inputs, _labels = split_data(format_data(load_data(network_info.train_dir,
+                                                                        train_queue.get(timeout=2),
+                                                                        obs_config),
+                                                              pov=network_info.pov
+                                                              ),
+                                                  num_images=network_info.num_images,
+                                                  pov=network_info.pov)
+                    inputs = [inp + _inp for inp, _inp in zip(inputs, _inputs)]
+                    labels = [lab + _lab for lab, _lab in zip(labels, _labels)]
+                    ep_count += 1
+                except Empty:
+                    exit_while = True  # Exits the loop, but ensures the last data is passed to the episode_queue
+                    break
+            if ep_count > 0:
+                # Tensorflow need the inputs as arrays, so we transform those here
+                inputs = [np.array(inp) for inp in inputs]
+                labels = [np.array(lab) for lab in labels]
+
+                # On each iteration we add the inputs, labels, and how many episodes are contained
+                episode_queue.put((inputs, labels, ep_count))
+        time.sleep(0.1)
+        if exit_while:
+            print(f'[Info] Episode loader reached last element of training queue. PID: {getpid()}\n')
+            return
 
 
 def train_new(config: EndToEndConfig) -> None:
@@ -156,23 +179,16 @@ def train(network: Model,
                             network_info.epochs_to_train)
     total_episodes = len(train_order)
 
-    steps = 0  # Counter for number of steps in each episode
+    ep_per_update = 2  # essentially the batch size, number of episodes we expose the network to before an update
 
+    # We display an update at most 100 times during training. History is also recorded at each update.
     display_every = int(np.ceil(total_episodes/100))
-    display_next = 0
-
-    train_performance = []
 
     prev_last_step = prev_train_performance[-1, -1] if prev_train_performance is not None else 0
-
-    memory_percent_threshold = 70
 
     ##############################
     # Set up the multiprocessing #
     ##############################
-    num_loaders = 3  # 3 processes seems to work well for loading data
-    queue_size = 20  # 20 episodes in the queue seems to work well
-
     train_queue = Queue()
     episode_queue = Queue()
 
@@ -181,15 +197,19 @@ def train(network: Model,
         # training on 12k episodes for 5 epochs took less than 0.1 sec so we'll deal with this later.
         train_queue.put(ep)
 
+    num_loaders = 3  # 2-3 processes seems to work well for loading data
+    queue_size = 10  # Can greatly affect memory usage. At any given time the number in memory is between...
+    # queue_size * ep_per_update <= episodes in memory <= (queue_size + num_loaders) * ep_per_update
+
     proc = []
     for loader in range(num_loaders):
         proc.append(Process(target=episode_loader,
-                            args=(train_queue, episode_queue, network_info, obs_config, queue_size)))
+                            args=(train_queue, episode_queue, network_info, obs_config, queue_size, ep_per_update)))
     [p.start() for p in proc]
 
-    #################
-    # Training loop #
-    #################
+    ########################
+    # Pre-training summary #
+    ########################
     print(f'\n[Info] Pre-training summary: ')
     print(f'Will train with {network_info.train_amount} episodes over {network_info.epochs_to_train} epochs. \n'
           f'Training episodes will be pulled from: {network_info.train_dir}\n'
@@ -197,30 +217,51 @@ def train(network: Model,
 
     input('\nReady to begin training. Press enter to proceed...')
 
-    print(f'\n[Info] Preloading queue with {queue_size} episodes...')
+    print(f'\n[Info] Using {num_loaders} processes to preload queue with {queue_size*ep_per_update} episodes...')
+    # This actually starts when each process is started, but this ensures it completes before
+    # the training loop begins.
     while episode_queue.qsize() < queue_size:
         time.sleep(0.1)
 
     print('\n[info] Beginning training loop...')
-    start_time = time.perf_counter()
-    i = 0
-    while not episode_queue.empty():
-        i += 1
-        inputs, labels = episode_queue.get()
-        steps += len(inputs[0])
-        h = network.fit(x=inputs,
-                        y=labels,
-                        shuffle=False,
-                        epochs=1,  # Epochs are already handled by train_order
-                        verbose=0,)
-        if i > display_next:
-            display_next += display_every
-            h.history['steps'] = [steps + prev_last_step]
-            train_performance.append(h.history)
-            display_update(network_info, i, start_time, total_episodes)
-        if virtual_memory().percent > memory_percent_threshold:
-            free_memory(memory_percent_threshold)
 
+    #####################
+    # The training loop #
+    #####################
+    start_time = time.perf_counter()
+    ep_counter = 0     # Counter for total episodes training in the loop
+    steps_counter = 0  # Counter for cumulative steps in the episodes
+    display_next = 0   # Tracks when to publish a status update.
+
+    train_performance = []  # Container to hold the performance recorded by the current training loop
+
+    memory_percent_threshold = 80  # If the percent of RAM used in the loop exceeds this we try to free memory
+
+    while not episode_queue.empty():
+        try:
+            inputs, labels, count = episode_queue.get(timeout=10)
+            steps_counter += len(inputs[0])
+            h = network.fit(x=inputs,
+                            y=labels,
+                            shuffle=False,
+                            epochs=1,  # Epochs are already handled by train_order
+                            verbose=0,)
+            ep_counter += count
+
+            if ep_counter >= display_next:
+                h.history['steps'] = [steps_counter + prev_last_step]
+                train_performance.append(h.history)
+                display_update(network_info, ep_counter, start_time, total_episodes)
+                display_next = ep_counter + display_every
+
+            if virtual_memory().percent > memory_percent_threshold:
+                free_memory(memory_percent_threshold)
+        except Empty:
+            break
+
+    ##################################################
+    # Loop cleanup and multiprocessing sanity checks #
+    ##################################################
     free_memory()
 
     print(f'[Info] Finished training model. Training took {format_time(time.perf_counter() - start_time)}.')
@@ -229,6 +270,9 @@ def train(network: Model,
         print(f'\n[WARN] After training {train_queue.qsize()} episodes were left in train_queue and '
               f'not loaded for training OR {episode_queue.qsize()} episodes were loaded into episode '
               f'queue but not trained on. Model will be still be saved but the episode count may be inaccurate.')
+    if not (ep_counter == total_episodes):
+        print(f'\n[WARN] Trained on {ep_counter} episodes of the {total_episodes} total requested. '
+              f'The queues may have failed.')
 
     ####################
     # Save the network #
