@@ -158,6 +158,7 @@ class NetworkBuilder(object):
                               'output_target': MeanSquaredError(),
                               'output_gripper': MeanSquaredError(),
                               },
+                        loss_weights=[1, 1, 1, 1],
                         metrics={'output_joints': RootMeanSquaredError(),
                                  'output_action': CategoricalAccuracy(),
                                  'output_target': RootMeanSquaredError(),
