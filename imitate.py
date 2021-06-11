@@ -58,34 +58,33 @@ def episode_loader(train_queue: Queue, episode_queue: Queue, network_info: Netwo
     """
     exit_while = False
     while True:
-        if episode_queue.qsize() < queue_amount:
-            inputs = [[], [], []]
-            labels = [[], [], [], []]
-            ep_count = 0  # Ensures we don't accidentally return the 'empty' information
-            for ep in range(ep_per_update):
-                try:
-                    # Attempts to pull from train_queue, blocking for a few seconds and going to the except
-                    # statement if nothing is returned in that time.
-                    _inputs, _labels = split_data(format_data(load_data(network_info.train_dir,
-                                                                        train_queue.get(timeout=2),
-                                                                        obs_config),
-                                                              pov=network_info.pov
-                                                              ),
-                                                  num_images=network_info.num_images,
-                                                  pov=network_info.pov)
-                    inputs = [inp + _inp for inp, _inp in zip(inputs, _inputs)]
-                    labels = [lab + _lab for lab, _lab in zip(labels, _labels)]
-                    ep_count += 1
-                except Empty:
-                    exit_while = True  # Exits the loop, but ensures the last data is passed to the episode_queue
-                    break
-            if ep_count > 0:
-                # Tensorflow need the inputs as arrays, so we transform those here
-                inputs = [np.array(inp) for inp in inputs]
-                labels = [np.array(lab) for lab in labels]
+        inputs = [[], [], []]
+        labels = [[], [], [], []]
+        ep_count = 0  # Ensures we don't accidentally return the 'empty' information
+        for ep in range(ep_per_update):
+            try:
+                # Attempts to pull from train_queue, blocking for a few seconds and going to the except
+                # statement if nothing is returned in that time.
+                _inputs, _labels = split_data(format_data(load_data(network_info.train_dir,
+                                                                    train_queue.get(timeout=2),
+                                                                    obs_config),
+                                                          pov=network_info.pov
+                                                          ),
+                                              num_images=network_info.num_images,
+                                              pov=network_info.pov)
+                inputs = [inp + _inp for inp, _inp in zip(inputs, _inputs)]
+                labels = [lab + _lab for lab, _lab in zip(labels, _labels)]
+                ep_count += 1
+            except Empty:
+                exit_while = True  # Exits the loop, but ensures the last data is passed to the episode_queue
+                break
+        if ep_count > 0:
+            # Tensorflow need the inputs as arrays, so we transform those here
+            inputs = [np.array(inp) for inp in inputs]
+            labels = [np.array(lab) for lab in labels]
 
-                # On each iteration we add the inputs, labels, and how many episodes are contained
-                episode_queue.put((inputs, labels, ep_count))
+            # On each iteration we add the inputs, labels, and how many episodes are contained
+            episode_queue.put((inputs, labels, ep_count))
         time.sleep(0.1)
         if exit_while:
             print(f'[Info] Episode loader reached last element of training queue. PID: {getpid()}\n')
@@ -190,7 +189,6 @@ def train(network: Model,
     # Set up the multiprocessing #
     ##############################
     train_queue = Queue()
-    episode_queue = Queue()
 
     for ep in train_order:
         # Copying the list to a queue is definitely not ideal... but since its a list of integers even
@@ -198,13 +196,15 @@ def train(network: Model,
         train_queue.put(ep)
 
     num_loaders = 3  # 2-3 processes seems to work well for loading data
-    queue_size = 10  # Can greatly affect memory usage. At any given time the number in memory is between...
+    queue_size = 7   # Can greatly affect memory usage. At any given time the number in memory is between...
     # queue_size * ep_per_update <= episodes in memory <= (queue_size + num_loaders) * ep_per_update
 
-    proc = []
-    for loader in range(num_loaders):
-        proc.append(Process(target=episode_loader,
-                            args=(train_queue, episode_queue, network_info, obs_config, queue_size, ep_per_update)))
+    episode_queue = Queue(maxsize=queue_size)
+
+    proc = [Process(target=episode_loader,
+                    args=(train_queue, episode_queue, network_info, obs_config, queue_size, ep_per_update))
+            for _ in range(num_loaders)]
+
     [p.start() for p in proc]
 
     ########################
