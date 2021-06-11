@@ -29,6 +29,7 @@ import time
 import gc
 
 from multiprocessing import Queue
+from multiprocessing import Value
 from multiprocessing import Process
 from queue import Empty
 
@@ -36,7 +37,7 @@ import asyncio
 
 
 def episode_loader(train_queue: Queue, episode_queue: Queue, network_info: NetworkInfo, obs_config: ObservationConfig,
-                   queue_amount: int = 5, ep_per_update: int = 1):
+                   ep_per_update: int = 1):
     """
     Target for multiprocessing in the main thread during train() that populates the episode queue with
     data for training.
@@ -48,10 +49,6 @@ def episode_loader(train_queue: Queue, episode_queue: Queue, network_info: Netwo
                           the list may not match the order in train_queue exactly.
     :param network_info:  NetworkInfo object for the network.
     :param obs_config:    RLBench observation configuration.
-    :param queue_amount:  Minimum number of episodes to keep in queue. The actual number of episodes in the
-                          queue will vary between this and (roughly) queue_amount + the number of
-                          episode_loaders*ep_per_update
-                          processes.
     :param ep_per_update: Number of episodes to combine into one update.
     """
     exit_while = False
