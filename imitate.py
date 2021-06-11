@@ -36,32 +36,39 @@ from queue import Empty
 import asyncio
 
 
-def episode_loader(train_queue: Queue, episode_queue: Queue, network_info: NetworkInfo, obs_config: ObservationConfig,
-                   ep_per_update: int = 1):
+def episode_loader(shared_counter: Value, train_order: List[int], episode_queue: Queue, network_info: NetworkInfo,
+                   obs_config: ObservationConfig, ep_per_update: int = 1):
     """
     Target for multiprocessing in the main thread during train() that populates the episode queue with
     data for training.
 
-    :param train_queue:   Queue containing integer values that represent what episodes to load and the order.
-                          This is essentially a copy of the train_order list that each process can pull from.
-    :param episode_queue: Queue to store the training data and labels in once the information has been loaded
-                          from disk, formatted, and split. Because of the load time the exact order of episodes in
-                          the list may not match the order in train_queue exactly.
-    :param network_info:  NetworkInfo object for the network.
-    :param obs_config:    RLBench observation configuration.
-    :param ep_per_update: Number of episodes to combine into one update.
+    :param shared_counter: Multiprocessing c-type integer to synchronize iteration of train_order
+    :param train_order:    List with the order of episode numbers to use in training. Note that because of multi-
+                           processing the *exact* order of values is not always preserved.
+    :param episode_queue:  Queue to store the training data and labels in once the information has been loaded
+                           from disk, formatted, and split. Because of the load time the exact order of episodes in
+                           the list may not match the order in train_queue exactly.
+    :param network_info:   NetworkInfo object for the network.
+    :param obs_config:     RLBench observation configuration.
+    :param ep_per_update:  Number of episodes to combine into one update.
     """
-    exit_while = False
-    while True:
+    exit_while = 0  # Treated as a boolean but integer comparisons are faster.
+    while 1:
         inputs = [[], [], []]
         labels = [[], [], [], []]
-        ep_count = 0  # Ensures we don't accidentally return the 'empty' information
+        ep_count = 0
+        # A 'local' counter keeps track of how many episodes are
+        # added in the loop to ensure we don't accidentally return the 'empty' information
         for ep in range(ep_per_update):
             try:
+                with shared_counter.get_lock():
+                    episode_num = train_order[shared_counter.value]
+                    shared_counter.value += 1
+
                 # Attempts to pull from train_queue, blocking for a few seconds and going to the except
                 # statement if nothing is returned in that time.
                 _inputs, _labels = get_data(episode_dir=network_info.train_dir,
-                                            episode_num=train_queue.get(timeout=2),
+                                            episode_num=episode_num,
                                             obs_config=obs_config,
                                             pov=network_info.pov,
                                             num_images=network_info.num_images)
@@ -69,10 +76,10 @@ def episode_loader(train_queue: Queue, episode_queue: Queue, network_info: Netwo
                 inputs = [inp + _inp for inp, _inp in zip(inputs, _inputs)]
                 labels = [lab + _lab for lab, _lab in zip(labels, _labels)]
                 ep_count += 1
-            except Empty:
-                exit_while = True  # Exits the loop, but ensures the last data is passed to the episode_queue
+            except IndexError:
+                exit_while = 1  # Exits the loop, but ensures the last data is passed to the episode_queue
                 break
-        if ep_count > 0:
+        if ep_count:  # Integer 0 == logical false
             # Tensorflow need the inputs as arrays, so we transform those here
             inputs = [np.array(inp) for inp in inputs]
             labels = [np.array(lab) for lab in labels]
@@ -182,12 +189,7 @@ def train(network: Model,
     ##############################
     # Set up the multiprocessing #
     ##############################
-    train_queue = Queue()
-
-    for ep in train_order:
-        # Copying the list to a queue is definitely not ideal... but since its a list of integers even
-        # training on 12k episodes for 5 epochs took less than 0.1 sec so we'll deal with this later.
-        train_queue.put(ep)
+    shared_counter = Value('i', 0)
 
     num_loaders = 3  # 2-3 processes seems to work well for loading data
     queue_size = 7   # Can greatly affect memory usage. At any given time the number in memory is between...
@@ -196,7 +198,7 @@ def train(network: Model,
     episode_queue = Queue(maxsize=queue_size)
 
     proc = [Process(target=episode_loader,
-                    args=(train_queue, episode_queue, network_info, obs_config, queue_size, ep_per_update))
+                    args=(shared_counter, train_order, episode_queue, network_info, obs_config, ep_per_update))
             for _ in range(num_loaders)]
 
     [p.start() for p in proc]
