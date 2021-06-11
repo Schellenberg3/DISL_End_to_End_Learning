@@ -51,6 +51,7 @@ def episode_loader(train_queue: Queue, episode_queue: Queue, network_info: Netwo
     :param obs_config:    RLBench observation configuration.
     :param ep_per_update: Number of episodes to combine into one update.
     """
+    verbose = 0
     exit_while = False
     while True:
         inputs = [[], [], []]
@@ -60,8 +61,9 @@ def episode_loader(train_queue: Queue, episode_queue: Queue, network_info: Netwo
             try:
                 # Attempts to pull from train_queue, blocking for a few seconds and going to the except
                 # statement if nothing is returned in that time.
+                episode_num = train_queue.get(timeout=10)
                 _inputs, _labels = get_data(episode_dir=network_info.train_dir,
-                                            episode_num=train_queue.get(timeout=2),
+                                            episode_num=episode_num,
                                             obs_config=obs_config,
                                             pov=network_info.pov,
                                             num_images=network_info.num_images)
@@ -69,6 +71,9 @@ def episode_loader(train_queue: Queue, episode_queue: Queue, network_info: Netwo
                 inputs = [inp + _inp for inp, _inp in zip(inputs, _inputs)]
                 labels = [lab + _lab for lab, _lab in zip(labels, _labels)]
                 ep_count += 1
+                if verbose:
+                    print(f'[Info] Loader-{getpid()} got episode{episode_num}. \t'
+                          f'{train_queue.qsize()} episodes left.\n')
             except Empty:
                 exit_while = True  # Exits the loop, but ensures the last data is passed to the episode_queue
                 break
@@ -196,7 +201,7 @@ def train(network: Model,
     episode_queue = Queue(maxsize=queue_size)
 
     proc = [Process(target=episode_loader,
-                    args=(train_queue, episode_queue, network_info, obs_config, queue_size, ep_per_update))
+                    args=(train_queue, episode_queue, network_info, obs_config, ep_per_update))
             for _ in range(num_loaders)]
 
     [p.start() for p in proc]
