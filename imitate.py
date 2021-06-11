@@ -9,10 +9,8 @@ from tensorflow.keras import Model
 
 from utils.network_info import NetworkInfo
 from utils.utils import get_order
-from utils.utils import load_data
-from utils.utils import format_data
+from utils.utils import get_data
 from utils.utils import format_time
-from utils.utils import split_data
 
 from evaluate import evaluate_network
 from config import EndToEndConfig
@@ -65,13 +63,12 @@ def episode_loader(train_queue: Queue, episode_queue: Queue, network_info: Netwo
             try:
                 # Attempts to pull from train_queue, blocking for a few seconds and going to the except
                 # statement if nothing is returned in that time.
-                _inputs, _labels = split_data(format_data(load_data(network_info.train_dir,
-                                                                    train_queue.get(timeout=2),
-                                                                    obs_config),
-                                                          pov=network_info.pov
-                                                          ),
-                                              num_images=network_info.num_images,
-                                              pov=network_info.pov)
+                _inputs, _labels = get_data(episode_dir=network_info.train_dir,
+                                            episode_num=train_queue.get(timeout=2),
+                                            obs_config=obs_config,
+                                            pov=network_info.pov,
+                                            num_images=network_info.num_images)
+
                 inputs = [inp + _inp for inp, _inp in zip(inputs, _inputs)]
                 labels = [lab + _lab for lab, _lab in zip(labels, _labels)]
                 ep_count += 1
