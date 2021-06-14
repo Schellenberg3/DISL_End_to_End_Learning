@@ -11,7 +11,6 @@ from rlbench import RandomizeEvery
 from rlbench import VisualRandomizationConfig
 
 from utils.network_info import NetworkInfo
-from utils.utils import get_gripper_action
 from utils.utils import scale_panda_pose
 from utils.utils import blank_image_list
 from utils.utils import step_images
