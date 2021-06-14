@@ -637,3 +637,26 @@ def split_data(episode: Demo, num_images: int = 4, pov: str = 'front') -> \
     return inputs, labels
 
 
+def get_data(episode_dir: str, episode_num: int, obs_config: ObservationConfig, pov: Union[str, List[str]],
+             num_images: int) -> Tuple[List[List], List[List]]:
+    """
+    Convenience function that calls load, split, then format to return the inputs and labels for a training
+    episode.
+
+    :param episode_dir: Which directory to load an episode from
+    :param episode_num: Which episode to load from the directory
+    :param obs_config:  RLBench ObservationConfiguration
+    :param pov:         Either 'wrist' or 'front', tells which images to use
+    :param num_images:  Number of images to use for the image input.
+
+    :return: Tuple of lists for joint data, depth image, and ground truth label
+    """
+    return split_data(format_data(load_data(episode_dir,
+                                            episode_num,
+                                            obs_config=obs_config
+                                            ),
+                                  pov=pov
+                                  ),
+                      num_images=num_images,
+                      pov=pov)
+
