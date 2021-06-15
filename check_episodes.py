@@ -1,6 +1,7 @@
 from config import EndToEndConfig
 
 from os.path import join
+from os.path import isdir
 from os import listdir
 from os import renames
 
@@ -53,7 +54,7 @@ if __name__ == '__main__':
     for i, dir_name in enumerate(dir_to_rename):
         old_name = f'{broken_dataset_dir}/{dir_name}'
         count.append(len(listdir(f'{old_name}/front_rgb')))
-        temp_name = f'{broken_dataset_dir}/episode{i}__temp'
+        temp_name = f'{broken_dataset_dir}/{dir_name}_tmp'
         renames(old_name, temp_name)
 
     count = np.asarray(count)
@@ -66,14 +67,18 @@ if __name__ == '__main__':
     more_size = []
     min_size = [float('inf'), '']
     max_size = [-1, '']
+    broken_dataset = []
 
     missing_pkl = []
+
+    total_size = 0
 
     for i, dir_name in enumerate(listdir(broken_dataset_dir)):
         old_name = f'{broken_dataset_dir}/{dir_name}'
         size = len(listdir(f'{old_name}/front_rgb'))
         new_name = f'{broken_dataset_dir}/episode{i}'
         renames(old_name, new_name)
+        total_size += size
 
         pkl_count = len(glob.glob(join(new_name, 'low_dim_obs.pkl')))
         if pkl_count != 1:
@@ -92,6 +97,16 @@ if __name__ == '__main__':
         elif size > (avg + factor*std):
             more_name.append(new_name)
             more_size.append(size)
+
+        sub_dirs = listdir(new_name)
+        if len(sub_dirs) < 13:
+            broken_dataset.append(new_name.split('/')[-1])
+        else:
+            for folder in sub_dirs:
+                test_dir = join(new_name, folder)
+                if isdir(test_dir) and len(listdir(test_dir)) != size:
+                    broken_dataset.append(new_name.split('/')[-1])
+
 
     end_rename = time.perf_counter()
 
@@ -120,6 +135,14 @@ if __name__ == '__main__':
         [print(f'{ep}') for ep in missing_pkl]
     else:
         print(f"\n[Info] Checked all episodes for 'low_dim_obs.pkl' files and found no missing data.")
+
+    if len(broken_dataset) > 0:
+        print(f'\n[WARN] Broken datasets in {len(missing_pkl)} episode(s)! Check the following...')
+        [print(f'{ep}') for ep in broken_dataset]
+    else:
+        print(f"\n[Info] Checked all episodes for broken datasets and found no missing data.")   
+
+    print(f'\n[Info] The dataset contains {total_size} datapoints across all {num_to_rename} episodes.')
 
     print(f'\n[Info] Successfully renamed {num_to_rename} files at: {broken_dataset_dir}. '
           f'Process took {end_rename - start_rename:.3f} seconds. Exiting program.')
