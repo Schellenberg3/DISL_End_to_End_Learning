@@ -17,8 +17,11 @@ from multiprocessing import Process
 from os.path import join
 from os import cpu_count
 from os import listdir
+from os import getpid
 
 from typing import Union
+
+import numpy as np
 
 import pathlib
 import time
@@ -60,6 +63,9 @@ def multiprocess_demos(mp_action_mode,
     mp_prior_error = False
 
     mp_remaining = mp_request
+
+    # Reset the random seed for each process to ensure unique episodes...
+    np.random.set_state(np.random.RandomState().get_state())
 
     while mp_remaining > 0:
         mp_begin_save_at = mp_start_at + mp_generated
