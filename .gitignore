@@ -1,6 +1,7 @@
 # Local machine-specific directories
 data/
 datasets/
+reports/
 .idea/
 utils/test_episodes
 
