@@ -33,9 +33,6 @@ def main(arguments: Namespace):
 
     visual = arguments.vis
 
-    obs_config = ObservationConfig()
-    obs_config.task_low_dim_state = True
-
     config = EndToEndConfig()
     network_dir = config.get_trained_network()
 
@@ -52,12 +49,12 @@ def main(arguments: Namespace):
     if visual:
         display_vis(network=network,
                     network_info=network_info,
-                    obs_config=obs_config)
+                    obs_config=config.rlbench_obsconfig)
     else:
         evaluate_network(network=network,
                          network_info=network_info,
                          network_save_dir=network_dir,
-                         obs_config=obs_config)
+                         obs_config=config.rlbench_obsconfig)
 
 
 def display_vis(network, network_info, obs_config):

@@ -27,24 +27,21 @@ import pathlib
 import time
 
 
-def get_env(rand: bool, act_mode: ActionMode, obs: ObservationConfig, image_dir: str,
+def get_env(rand: bool, mp_config: EndToEndConfig,
             head: bool = True) -> Union[Environment, DomainRandomizationEnvironment]:
     if not rand:
-        env = Environment(action_mode=act_mode, obs_config=obs, headless=head)
+        env = Environment(action_mode=mp_config.rlbench_actionmode,
+                          obs_config=mp_config.rlbench_obsconfig, headless=head)
     else:
-        im_path = pathlib.Path().absolute() / image_dir
-        mp_rand_config = VisualRandomizationConfig(image_directory=im_path)
-        # todo: Domain randomization code forces panda. Why? Can this be changed?
-        env = DomainRandomizationEnvironment(action_mode=act_mode,
-                                             obs_config=obs,
+        env = DomainRandomizationEnvironment(action_mode=mp_config.rlbench_actionmode,
+                                             obs_config=mp_config.rlbench_obsconfig,
                                              headless=head,
-                                             visual_randomization_config=mp_rand_config,
+                                             visual_randomization_config=mp_config.rlbench_random_config,
                                              randomize_every=RandomizeEvery.EPISODE)
     return env
 
 
-def multiprocess_demos(mp_action_mode,
-                       mp_obs_config,
+def multiprocess_demos(mp_config,
                        mp_headless,
                        mp_request,
                        mp_start_at,
@@ -52,8 +49,7 @@ def multiprocess_demos(mp_action_mode,
                        mp_root_save_path,
                        mp_domain_rand,
                        mp_dr_images):
-    mp_env = get_env(rand=mp_domain_rand, act_mode=mp_action_mode,
-                     obs=mp_obs_config, image_dir=mp_dr_images, head=mp_headless)
+    mp_env = get_env(rand=mp_domain_rand, mp_config=mp_config, head=mp_headless)
     mp_env.launch()
 
     mp_error_count = 0
@@ -141,10 +137,6 @@ if __name__ == '__main__':
     headless = True  # To save resources by not displaying CoppeliaSim
     live_demos = True
 
-    obs_config = ObservationConfig()
-    obs_config.task_low_dim_state = True
-    action_mode = ActionMode(ArmActionMode.ABS_JOINT_POSITION)
-
     processes = []
     mp_start_time = time.perf_counter()
 
@@ -196,8 +188,7 @@ if __name__ == '__main__':
             num_request = demo_per_process
 
         processes.append(Process(target=multiprocess_demos,
-                                 args=(action_mode,
-                                       obs_config,
+                                 args=(config,
                                        headless,
                                        num_request,
                                        num_start_at,

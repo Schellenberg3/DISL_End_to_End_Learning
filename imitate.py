@@ -106,7 +106,8 @@ def train_new(config: EndToEndConfig) -> None:
 
     train(network=network,
           network_info=network_info,
-          save_root=config.network_root)
+          save_root=config.network_root,
+          config=config)
 
 
 def train_existing(config: EndToEndConfig) -> None:
@@ -152,12 +153,14 @@ def train_existing(config: EndToEndConfig) -> None:
     train(network=network,
           network_info=network_info,
           save_root=config.network_root,
-          prev_train_performance=prev_train_performance)
+          prev_train_performance=prev_train_performance,
+          config=config)
 
 
 def train(network: Model,
           network_info: NetworkInfo,
           save_root: str,
+          config: EndToEndConfig,
           prev_train_performance: np.ndarray = None):
     ##################################################################################################
     # Update network info before training and generate the new it will be saved as and the directory #
@@ -168,12 +171,6 @@ def train(network: Model,
     save_network_as = f'{network_info.network_name}_{network_info.train_amount}_by{network_info.total_epochs}'
     network_save_dir = join(save_root, 'imitation', save_network_as)
     check_if_network_exists(network_save_dir)
-
-    #####################################
-    # RLBench settings for loading data #
-    #####################################
-    obs_config = ObservationConfig()
-    obs_config.task_low_dim_state = True
 
     #########################################################
     # Information used by TensorFlow / in the training loop #
@@ -210,7 +207,7 @@ def train(network: Model,
                     kwargs={'train_queue': train_queue,
                             'episode_queue': episode_queue,
                             'network_info': network_info,
-                            'obs_config': obs_config,
+                            'obs_config': config.rlbench_obsconfig,
                             'ep_per_update': ep_per_update,
                             'lid': i+1,
                             'verbose': False})
@@ -329,7 +326,7 @@ def train(network: Model,
         evaluate_network(network=network,
                          network_info=network_info,
                          network_save_dir=network_save_dir,
-                         obs_config=obs_config)
+                         config=config)
 
     [p.join() for p in proc]
 

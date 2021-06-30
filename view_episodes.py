@@ -48,11 +48,9 @@ def main():
     #  - the data after being formatted                            #
     #  - the data after its been split                             #
     ################################################################
-    obs_config = ObservationConfig()
-    obs_config.task_low_dim_state = True
     on_disk = load_data(path=dataset_dir,
                         example_num=ep_num,
-                        obs_config=obs_config)
+                        obs_config=config.rlbench_obsconfig)
 
     formatted = format_data(episode=deepcopy(on_disk),
                             pov=pov)

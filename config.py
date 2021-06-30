@@ -1,3 +1,7 @@
+from rlbench.sim2real.domain_randomization import VisualRandomizationConfig
+from rlbench.observation_config import ObservationConfig
+from rlbench.action_modes import ArmActionMode
+from rlbench.action_modes import ActionMode
 from rlbench.tasks import DislPickUpBlueCup
 from rlbench.tasks import ReachTarget
 
@@ -40,6 +44,30 @@ class EndToEndConfig:
                       "DislPickUpBlueCup": DislPickUpBlueCup,
                       }
         self.default_task = ["ReachTarget", ReachTarget]
+
+        ###########################################################################################
+        # We contain a few RLBench configurations within this configuration to ensure consistency #
+        ###########################################################################################
+        self.rlbench_obsconfig = ObservationConfig()
+        self.rlbench_obsconfig.task_low_dim_state = True
+
+        self.rlbench_actionmode = ActionMode(ArmActionMode.ABS_JOINT_POSITION)
+
+        # Important to keep the blacklist updated; no errors are thrown if the item does not exist in the scene
+        self.rlbench_random_config = VisualRandomizationConfig(image_directory=self.domain_rand_textures,
+                                                               blacklist=['cup_visual',
+                                                                          'nonexistant_test',
+                                                                          'Panda_link0_visual',
+                                                                          'Panda_link1_visual',
+                                                                          'Panda_link2_visual',
+                                                                          'Panda_link3_visual',
+                                                                          'Panda_link4_visual',
+                                                                          'Panda_link5_visual',
+                                                                          'Panda_link6_visual',
+                                                                          'Panda_link7_visual',
+                                                                          'Panda_gripper_visual',
+                                                                          'Panda_leftfinger_visual',
+                                                                          'Panda_rightfinger_visual'])
 
     def get_task_from_name(self, parsed_name: List[str]):
         """ Uses the network name or directory name to select the
