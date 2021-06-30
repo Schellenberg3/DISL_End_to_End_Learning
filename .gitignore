@@ -4,6 +4,7 @@ datasets/
 reports/
 .idea/
 utils/test_episodes
+utils/textures
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
