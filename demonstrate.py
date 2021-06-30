@@ -20,6 +20,8 @@ from os.path import join
 import numpy as np
 import pickle
 
+import matplotlib.pyplot as plt
+
 
 def get_image(obs: Observation, pov: str) -> np.ndarray:
     """
@@ -80,6 +82,21 @@ def main():
     env.launch()
     task = env.get_task(imitation_task)
 
+    plt.ion()
+    fig, axs = plt.subplots(nrows=3, ncols=1, sharex='all')
+    fig.suptitle('Error of Gripper and Target Estimates')
+    fig.text(0.5, 0.04, 'Time Step', ha='center')
+    fig.text(0.04, 0.5, 'Difference [m]', va='center', rotation='vertical')
+    lines = []
+    for ax, d in zip(axs, ['X', 'Y', 'Z']):
+        ax.set_title(f'{d}-Direction')
+        line_t, = ax.plot(0, 0, 'b-', label='Target')
+        line_g, = ax.plot(0, 0, 'r-', label='Gripper')
+        ax.plot(np.linspace(0, demonstration_episode_length, demonstration_episode_length),
+                np.zeros(demonstration_episode_length), 'k-', label='Zero')
+        lines.append((line_t, line_g))
+    axs[0].legend(loc='lower left')
+
     evaluation_steps = num_demonstrations * demonstration_episode_length
 
     image_list = blank_image_list(network_info.num_images)
@@ -87,10 +104,16 @@ def main():
     obs = None
     for i in range(evaluation_steps):
         if i % demonstration_episode_length == 0:  # i.e. we're starting a new demonstration
+            step = 0
+            target_error = []
+            gripper_error = []
+            steps = []
+
             descriptions, obs = task.reset()
             image_list = blank_image_list(network_info.num_images)
             print(f"[Info] Task reset: on episode {int(1+(i/demonstration_episode_length))} "
                   f"of {int(evaluation_steps / demonstration_episode_length)}")
+            input('Press enter to continue...')
 
         ##############################################################
         # Collect prediction information from the latest observation #
@@ -128,12 +151,36 @@ def main():
             target_actual = np.array([np.inf, np.inf, np.inf])
         gripper_actual = obs.gripper_pose
 
+        #################
+        # Create Graphs #
+        #################
+        target_error.append(target_estimation - target_actual[:3])
+        gripper_error.append(gripper_estimation - gripper_actual[:3])
+
+        step += 1
+        steps.append(step)
+
+        t_e = np.array(target_error)
+        g_e = np.array(gripper_error)
+
+        for s, ax in enumerate(axs):
+            line_t, line_g = lines[s]
+            line_t.set_data(steps, t_e[:, s])
+            line_g.set_data(steps, g_e[:, s])
+
+            fig.canvas.draw()
+            fig.canvas.flush_events()
+            # print(f'steps={steps}\nt_e={t_e[:, s]}')
+            ax.set_xlim(left=0, right=step)
+            ax.set_ylim(bottom=min(min(g_e[:, s]), min(t_e[:, s])), top=max(max(g_e[:, s]), max(t_e[:, s])))
+
         #######################################################
         # Create action input and step the simulation forward #
         #######################################################
         action = np.append(joint_action, gripper_action)
         obs, reward, terminate = task.step(action)
 
+    input('Press enter to exit...')
     env.shutdown()
     print(f'[Info] Successfully exiting program.')
 
