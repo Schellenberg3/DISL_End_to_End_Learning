@@ -107,7 +107,6 @@ if __name__ == '__main__':
                 if isdir(test_dir) and len(listdir(test_dir)) != size:
                     broken_dataset.append(new_name.split('/')[-1])
 
-
     end_rename = time.perf_counter()
 
     print(f'\n[Info] Finished renaming files.')
