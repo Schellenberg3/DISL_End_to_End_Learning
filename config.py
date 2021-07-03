@@ -292,6 +292,25 @@ class EndToEndConfig:
             except NotADirectoryError:
                 pass
 
+    def get_data_set_directory(self, prompt: str = 'Select a directory # to use: ') -> str:
+        """
+        Lists available datasets and returns the directory for just one.
+
+        :param prompt: What to say in the user prompt for an input.
+
+        :return: Path to dataset as {root}/{selected dataset}/variation0/episodes
+        """
+        self.list_data_set_directories()
+        dir_num = int(input(f'\n{prompt}'))
+        if (type(dir_num) is not int) or (dir_num < 0) or (dir_num > len(self.possible_data_set)):
+            exit('\n[Error] Please enter a valid index above zero.')
+
+        dataset_dir = join(self.data_root,
+                           self.possible_data_set[dir_num],
+                           'variation0',
+                           'episodes')
+        return dataset_dir
+
     def get_train_test_directories(self) -> Tuple[str, str]:
         """ Prints a numbered list of all data sets in the data
         directory with the number of episodes they contain. Users

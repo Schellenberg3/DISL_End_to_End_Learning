@@ -12,21 +12,7 @@ import glob
 if __name__ == '__main__':
 
     config = EndToEndConfig()
-
-    config.list_data_set_directories()
-
-    dir_num = None
-    try:
-        dir_num = int(input('\nSelect a directory # to check: '))
-        if dir_num < 0 or dir_num > len(config.possible_data_set):
-            exit('\n[Error] Please enter a valid index above zero.')
-    except (IndexError, ValueError) as e:
-        exit('\n[Error] Selection should be an integer. Exiting program.')
-
-    broken_dataset_dir = join(config.data_root,
-                              config.possible_data_set[dir_num],
-                              'variation0',
-                              'episodes')
+    broken_dataset_dir = config.get_data_set_directory('Select a directory # to check: ')
 
     try:
         dir_to_rename = listdir(broken_dataset_dir)
