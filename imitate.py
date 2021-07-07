@@ -230,6 +230,10 @@ def train(network: Model,
     # the training loop begins.
     while episode_queue.qsize() < queue_len:
         time.sleep(0.1)
+        alive = [p.is_alive() for p in proc]
+        if False in alive:
+            # short method for breaking inf loop if a small number of training eps are requested
+            break
 
     print('\n[info] Beginning training loop...')
 
