@@ -9,11 +9,7 @@ from rlbench.environment import Environment
 from rlbench.observation_config import ObservationConfig
 from rlbench.backend.observation import Observation
 
-from rlbench import DomainRandomizationEnvironment
-from rlbench import RandomizeEvery
-from rlbench import VisualRandomizationConfig
-
-from utils.network_info import NetworkInfo
+from utils.recorder import Recorder
 from utils.utils import scale_panda_pose
 from utils.utils import blank_image_list
 from utils.utils import step_images
@@ -111,6 +107,9 @@ def main():
     env = get_env(rand_env, config)
     env.launch()
 
+    record = Recorder(network_dir=network_dir)
+
+    demonstration_episode_length = 100  # max steps per episode
     for i, ep in enumerate(eps):
         task = env.get_task(imitation_task)
 
@@ -123,6 +122,7 @@ def main():
         print(f'\n[Info] Reproducing episode {ep}. On demo {i+1} of {len(eps)}')
         input('Press enter to continue...')
         for s in range(demonstration_episode_length):
+            record.add_image(obs.front_rgb)
             ##############################################################
             # Collect prediction information from the latest observation #
             ##############################################################
@@ -173,6 +173,8 @@ def main():
             #######################################################
             action = np.append(joint_action, gripper_action)
             obs, reward, terminate = task.step(action)
+
+        record.save_gif(f'{ep}')
 
         del network
         clear_session()
