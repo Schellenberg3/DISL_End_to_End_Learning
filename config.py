@@ -225,6 +225,11 @@ class EndToEndConfig:
         num_joints = int(input('\nHow man joints does your robot have (default 7 for Panda): ') or 7)
         print(f'[Info] Network will accept {num_joints} joint values as an input.')
 
+        predict_mode = int(input('\nEnter 0 for position control or 1 for velocity control (default 0): ') or 0)
+        predict_mode = 'velocities' if predict_mode == 1 else 'position'
+        print(f'[Info] Network will predict {predict_mode} for the {num_joints} joints/')
+        self.set_action_mode(predict_mode)
+
         print('\nPlease enter some training parameters for the network...')
         pov = self.get_pov_from_user()
 
@@ -240,6 +245,7 @@ class EndToEndConfig:
                                  deep=deep,
                                  num_images=num_images,
                                  num_joints=num_joints,
+                                 predict_mode=predict_mode,
                                  pov=pov,
                                  rand=rand)
 

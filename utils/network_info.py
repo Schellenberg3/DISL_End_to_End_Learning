@@ -13,6 +13,7 @@ class NetworkInfo(object):
         self.deep = None
         self.num_joints = None
         self.num_images = None
+        self.predict_mode = None
         self.pov = None
 
         # Information passed from a TrainingInfo object

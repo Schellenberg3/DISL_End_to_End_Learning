@@ -563,18 +563,20 @@ def get_front_rgbd(episode: Demo, step: int) -> np.ndarray:
                       episode[step].front_depth))
 
 
-def split_data(episode: Demo, num_images: int = 4, pov: str = 'front') -> \
+def split_data(episode: Demo, num_images: int = 4, pov: str = 'front', predict_mode: str = 'positions') -> \
         Tuple[List[List], List[List]]:
     """ Takes an episode and splits it into the joint data (including gripper), the depth image,
     and the next position (ground truth label). Returns a list with the values for each
     of these at evey step in the episode.
 
-    :param episode:    Episode to split
-    :param num_images: Number of images to use for the image input.
-    :param pov:        Either 'wrist' or 'front', tells which images to use
+    :param episode:      Episode to split
+    :param num_images:   Number of images to use for the image input.
+    :param pov:          Either 'wrist' or 'front', tells which images to use
+    :param predict_mode: What mode to use for the output joint prediction. Either 'positions' or 'velocities'
 
     :return: Tuple of lists for joint data, depth image, and ground truth label
     """
+    predict_mode = f'joint_{predict_mode}'  # format to RLBench's Observation object's member variable name convention
 
     # Input Data
     angles = []  # Input angle
@@ -583,7 +585,7 @@ def split_data(episode: Demo, num_images: int = 4, pov: str = 'front') -> \
     image_list = blank_image_list(num_images)  # Helper for creating the images input at each step
 
     # Prediction/Ground Truth labels
-    label_angles = []   # True angles
+    label_joints = []   # True angles or velocities
     label_action = []   # True gripper action (open or close)
     label_target = []   # True position of the target object (e.g. a cup)
     label_gripper = []  # True position of the robot's gripper
@@ -623,31 +625,32 @@ def split_data(episode: Demo, num_images: int = 4, pov: str = 'front') -> \
         label_gripper.append(episode[step].task_low_dim_state[-1][:3])
         array_action = np.zeros(2)
         try:
-            label_angles.append(episode[step + 1].joint_positions)
+            label_joints.append(getattr(episode[step + 1], predict_mode))
             next_action = episode[step + 1].gripper_open
         except IndexError:
-            label_angles.append(episode[step].joint_positions)
+            label_joints.append(getattr(episode[step], predict_mode))
             next_action = episode[step].gripper_open
         array_action[int(next_action)] = 1
         label_action.append(array_action.copy())
 
     inputs = [angles, action, images]
-    labels = [label_angles, label_action, label_target,label_gripper]
+    labels = [label_joints, label_action, label_target,label_gripper]
 
     return inputs, labels
 
 
 def get_data(episode_dir: str, episode_num: int, obs_config: ObservationConfig, pov: Union[str, List[str]],
-             num_images: int) -> Tuple[List[List], List[List]]:
+             num_images: int, predict_mode: str) -> Tuple[List[List], List[List]]:
     """
     Convenience function that calls load, split, then format to return the inputs and labels for a training
     episode.
 
-    :param episode_dir: Which directory to load an episode from
-    :param episode_num: Which episode to load from the directory
-    :param obs_config:  RLBench ObservationConfiguration
-    :param pov:         Either 'wrist' or 'front', tells which images to use
-    :param num_images:  Number of images to use for the image input.
+    :param episode_dir:  Which directory to load an episode from
+    :param episode_num:  Which episode to load from the directory
+    :param obs_config:   RLBench ObservationConfiguration
+    :param pov:          Either 'wrist' or 'front', tells which images to use
+    :param num_images:   Number of images to use for the image input.
+    :param predict_mode: What mode to use for the output joint prediction. Either 'positions' or 'velocities'
 
     :return: Tuple of lists for joint data, depth image, and ground truth label
     """
@@ -658,5 +661,6 @@ def get_data(episode_dir: str, episode_num: int, obs_config: ObservationConfig, 
                                   pov=pov
                                   ),
                       num_images=num_images,
-                      pov=pov)
+                      pov=pov,
+                      predict_mode=predict_mode)
 

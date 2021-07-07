@@ -144,7 +144,8 @@ def main():
             # Parse prediction for the actions and auxiliary outputs #
             ##########################################################
             joint_action = prediction[0].flatten()
-            joint_action = scale_panda_pose(joint_action, 'up')   # from [0, 1] to joint's proper values
+            if config.rlbench_actionmode.arm == ArmActionMode.ABS_JOINT_POSITION:
+                joint_action = scale_panda_pose(joint_action, 'up')   # from [0, 1] to joint's proper values
 
             gripper_action = np.argmax(prediction[1].flatten())
 

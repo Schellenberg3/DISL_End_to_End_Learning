@@ -29,24 +29,31 @@ except ModuleNotFoundError:
 
 class NetworkBuilder(object):
     """ Creates network and saves metadata """
-    def __init__(self, task:str, deep: bool = False, num_images: int = 4, num_joints: int = 7,
-                 pov: str = 'front', rand: bool = False) -> None:
+    def __init__(self, task: str, deep: bool = False, num_images: int = 4, num_joints: int = 7,
+                 predict_mode: str = 'position', pov: str = 'front', rand: bool = False) -> None:
         """
         Takes users parameters for a network to create and compile the desired network.
 
-        :param task:       String name of the task the network will be trained on
-        :param deep:       True := use dense layers in the gripper and joint network.
-                           False := pass gripper and joint values through to combined model
-        :param num_images: Number of images for the CNN to accept as an input
-        :param num_joints: Adjusts joint input to match the number of joints the robot has. The default (7)
-                           matches the Franka Panda. But other robots (like the UR5) have 6 or fewer joints.
-        :param pov:        Point of view that the network will be trained for
-        :param rand:       If the network is trained on randomized data
+        :param task:         String name of the task the network will be trained on
+        :param deep:         True := use dense layers in the gripper and joint network.
+                             False := pass gripper and joint values through to combined model
+        :param num_images:   Number of images for the CNN to accept as an input
+        :param num_joints:   Adjusts joint input to match the number of joints the robot has. The default (7)
+                             matches the Franka Panda. But other robots (like the UR5) have 6 or fewer joints.
+        :param predict_mode: What the joint output layer should predict. Either 'positions' or 'velocities'
+        :param pov:          Point of view that the network will be trained for
+        :param rand:         If the network is trained on randomized data
         """
         self._task = task
         self._deep = deep
         self._num_images = num_images
         self._num_joints = num_joints
+
+        if predict_mode in ['positions', 'velocities']:
+            self._predict_mode = predict_mode
+        else:
+            raise ValueError(f'Invalid control type "{predict_mode}" for NetworkBuilder.')
+
         self._pov = pov
         self._rand = rand
 
@@ -134,14 +141,26 @@ class NetworkBuilder(object):
         z = LSTM(128)(z)
         z = Dense(128, activation="relu")(z)
 
+        #########
+        # Names #
+        #########
+        output_joints_name = f'output_joints_{self._predict_mode}'
+        output_action_name = f'output_action'
+        output_target_name = f'output_target'
+        output_gripper_name = f'output_gripper'
+
+        #################
+        # Output layers #
+        #################
+
         output_joints = Dense(self._num_joints, activation="linear",
-                              name='output_joints')(z)   # Joint values (e.g. angles or velocity), continuous
+                              name=output_joints_name)(z)   # Joint values (e.g. angles or velocity), continuous
         output_action = Dense(2, activation="linear",)(z)
-        output_action = Softmax(name='output_action')(output_action)    # Gripper action, categorical with
+        output_action = Softmax(name=output_action_name)(output_action)    # Gripper action, categorical with
         output_target = Dense(3, activation="linear",
-                              name='output_target')(z)   # Target (e.g. a cup) Cartesian position, continuous
+                              name=output_target_name)(z)   # Target (e.g. a cup) Cartesian position, continuous
         output_gripper = Dense(3, activation="linear",
-                               name='output_gripper')(z)  # Gripper Cartesian position, continuous
+                               name=output_gripper_name)(z)  # Gripper Cartesian position, continuous
 
         network = Model(inputs=[joint_model.input,
                                 grip_model.input,
@@ -153,16 +172,16 @@ class NetworkBuilder(object):
 
         opt = Adam(learning_rate=0.0001)
         network.compile(optimizer=opt,
-                        loss={'output_joints': MeanSquaredError(),
-                              'output_action': MeanSquaredError(),
-                              'output_target': MeanSquaredError(),
-                              'output_gripper': MeanSquaredError(),
+                        loss={output_joints_name: MeanSquaredError(),
+                              output_action_name: MeanSquaredError(),
+                              output_target_name: MeanSquaredError(),
+                              output_gripper_name: MeanSquaredError(),
                               },
                         loss_weights=[1, 1, 1, 1],
-                        metrics={'output_joints': RootMeanSquaredError(),
-                                 'output_action': CategoricalAccuracy(),
-                                 'output_target': RootMeanSquaredError(),
-                                 'output_gripper': RootMeanSquaredError(),
+                        metrics={output_joints_name: RootMeanSquaredError(),
+                                 output_action_name: CategoricalAccuracy(),
+                                 output_target_name: RootMeanSquaredError(),
+                                 output_gripper_name: RootMeanSquaredError(),
                                  },
                         )
 
@@ -174,6 +193,7 @@ class NetworkBuilder(object):
         if self._rand:
             name.append(f'rand')
         name.append(f'{self._task}')
+        name.append(f'{self._predict_mode}')
         self._name = '_'.join(name)
 
         return network

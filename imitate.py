@@ -65,7 +65,8 @@ def episode_loader(train_queue: Queue, episode_queue: Queue, network_info: Netwo
                                             episode_num=episode_num,
                                             obs_config=obs_config,
                                             pov=network_info.pov,
-                                            num_images=network_info.num_images)
+                                            num_images=network_info.num_images,
+                                            predict_mode=network_info.predict_mode)
 
                 inputs = [inp + _inp for inp, _inp in zip(inputs, _inputs)]
                 labels = [lab + _lab for lab, _lab in zip(labels, _labels)]
