@@ -307,10 +307,10 @@ class EndToEndConfig:
             print(self._possible_network)
             exit('\n[ERROR] Selections must be integers and valid list indices. Exiting program')
 
-    @staticmethod
-    def load_trained_network(network_dir) -> Tuple[Model, NetworkInfo]:
+    def load_trained_network(self, network_dir) -> Tuple[Model, NetworkInfo]:
         """
-        Loads a tensorflow model from a specified directory.
+        Loads a tensorflow model from a specified directory AND sets the correct action
+        mode for the config.
 
         Assumes that the network file is .h5 format AND has the same name as the directory that
         is is placed in.
@@ -324,6 +324,19 @@ class EndToEndConfig:
         pickle_location = join(network_dir, 'network_info.pickle')
         with open(pickle_location, 'rb') as handle:
             network_info: NetworkInfo = pickle.load(handle)
+
+        try:
+            predict_mode = network_info.predict_mode
+        except AttributeError:  # To catch older networks that did not have the predict mode when they were trained
+            print("\n[WARN] Could not find the network's action mode. Please correct this!")
+            predict_mode = int(input('Enter 0 for position control or 1 for velocity control (default 0): ') or 0)
+            predict_mode = 'velocities' if predict_mode == 1 else 'positions'
+            network_info.predict_mode = predict_mode
+            with open(pickle_location, 'wb') as handle:
+                pickle.dump(network_info, handle)
+
+        self.set_action_mode(mode=predict_mode)
+
         return network, network_info
 
     def list_data_set_directories(self) -> None:
