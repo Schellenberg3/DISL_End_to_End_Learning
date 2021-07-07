@@ -92,9 +92,6 @@ def main():
 
     eps, dataset_dir, randomized = get_episode_info(config)
 
-    mode = 'velocities'
-    config.set_action_mode(mode)
-
     env = config.get_env(randomized=randomized)
     env.launch()
 
@@ -148,7 +145,7 @@ def main():
             # Get actual values #
             #####################
             try:
-                joint_label = getattr(episode[s], f'joint_{mode}')
+                joint_label = getattr(episode[s], f'joint_{network_info.predict_mode}')
                 action_label = episode[s].gripper_open
                 target_label = episode[s].task_low_dim_state[0][:3]
                 gripper_label = episode[s].task_low_dim_state[1][:3]
