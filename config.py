@@ -230,8 +230,8 @@ class EndToEndConfig:
         print(f'[Info] Network will accept {num_joints} joint values as an input.')
 
         predict_mode = int(input('\nEnter 0 for position control or 1 for velocity control (default 0): ') or 0)
-        predict_mode = 'velocities' if predict_mode == 1 else 'position'
-        print(f'[Info] Network will predict {predict_mode} for the {num_joints} joints/')
+        predict_mode = 'velocities' if predict_mode == 1 else 'positions'
+        print(f'[Info] Network will predict {predict_mode} for the {num_joints} joints.')
         self.set_action_mode(predict_mode)
 
         print('\nPlease enter some training parameters for the network...')
