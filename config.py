@@ -209,18 +209,11 @@ class EndToEndConfig:
 
         # Part of the network_info is generated here
         network_info = builder.get_metainfo()
+        network_info.predict_mode = predict_mode
 
         # For the rest of the info we pass the training_info data through to network_info.
         # After this all data is filled in network_info.
-        network_info.train_dir = training_info.train_dir
-        network_info.train_amount = training_info.train_amount
-        network_info.train_available = training_info.train_available
-
-        network_info.test_dir = training_info.test_dir
-        network_info.test_amount = training_info.test_amount
-        network_info.test_available = training_info.test_available
-
-        network_info.epochs_to_train = training_info.epochs
+        network_info.transfer_training_info(training_info)
 
         return network, network_info
 

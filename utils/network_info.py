@@ -1,3 +1,8 @@
+try:
+    from training_info import TrainingInfo
+except ModuleNotFoundError:
+    from utils.training_info import TrainingInfo
+
 
 class NetworkInfo(object):
     """ Storage object for information about a network's settings and previous training """
@@ -26,6 +31,17 @@ class NetworkInfo(object):
         self.epochs_to_train = 0
         self.prev_epochs = 0
         self.total_epochs = 0
+
+    def transfer_training_info(self, training_info: TrainingInfo):
+        self.train_dir = training_info.train_dir
+        self.train_amount = training_info.train_amount
+        self.train_available = training_info.train_available
+
+        self.test_dir = training_info.test_dir
+        self.test_amount = training_info.test_amount
+        self.test_available = training_info.test_available
+
+        self.epochs_to_train = training_info.epochs
 
     def __str__(self):
         return f'Network Name: {self.network_name}\n' \
