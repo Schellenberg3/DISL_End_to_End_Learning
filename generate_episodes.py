@@ -27,20 +27,6 @@ import pathlib
 import time
 
 
-def get_env(rand: bool, mp_config: EndToEndConfig,
-            head: bool = True) -> Union[Environment, DomainRandomizationEnvironment]:
-    if not rand:
-        env = Environment(action_mode=mp_config.rlbench_actionmode,
-                          obs_config=mp_config.rlbench_obsconfig, headless=head)
-    else:
-        env = DomainRandomizationEnvironment(action_mode=mp_config.rlbench_actionmode,
-                                             obs_config=mp_config.rlbench_obsconfig,
-                                             headless=head,
-                                             visual_randomization_config=mp_config.rlbench_random_config,
-                                             randomize_every=RandomizeEvery.EPISODE)
-    return env
-
-
 def multiprocess_demos(mp_config,
                        mp_headless,
                        mp_request,
@@ -49,7 +35,7 @@ def multiprocess_demos(mp_config,
                        mp_root_save_path,
                        mp_domain_rand,
                        mp_dr_images):
-    mp_env = get_env(rand=mp_domain_rand, mp_config=mp_config, head=mp_headless)
+    mp_env = mp_config.get_env(randomized=mp_domain_rand, headless=mp_headless)
     mp_env.launch()
 
     mp_error_count = 0

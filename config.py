@@ -1,9 +1,12 @@
 from rlbench.sim2real.domain_randomization import VisualRandomizationConfig
+from rlbench.sim2real.domain_randomization_environment import DomainRandomizationEnvironment
 from rlbench.observation_config import ObservationConfig
 from rlbench.action_modes import ArmActionMode
 from rlbench.action_modes import ActionMode
+from rlbench.environment import Environment
 from rlbench.tasks import DislPickUpBlueCup
 from rlbench.tasks import ReachTarget
+from rlbench import RandomizeEvery
 
 from utils.training_info import TrainingInfo
 from utils.network_info import NetworkInfo
@@ -164,6 +167,41 @@ class EndToEndConfig:
             return split[0], True
         else:
             raise Exception(f'Could not parse training directory name: {name}')
+
+    def get_env(self, randomized: bool, headless: bool = False) -> Union[Environment, DomainRandomizationEnvironment]:
+        """
+        Returns an RLBench environment with consistent action mode, observation RLBench observation config,
+        and domain randomization config.
+
+        :param randomized: If true will return an environment with domain randomization
+        :param headless:   If true will run headless (i.e. no display)
+
+        :return: Either a normal or domain randomized RLBench environment
+        """
+        if not randomized:
+            return Environment(action_mode=self.rlbench_actionmode,
+                               obs_config=self.rlbench_obsconfig,
+                               headless=headless)
+        else:
+            return DomainRandomizationEnvironment(action_mode=self.rlbench_actionmode,
+                                                  obs_config=self.rlbench_obsconfig,
+                                                  headless=headless,
+                                                  visual_randomization_config=self.rlbench_random_config,
+                                                  randomize_every=RandomizeEvery.EPISODE)
+
+    def set_action_mode(self, mode: str):
+        """
+        Setter for the config's RLBench action mode. May be set to either absolute joint position
+        or absolute joint velocity.
+
+        :param mode: What mode to use. Should be either 'positions' or 'velocities'
+        """
+        if mode == 'positions':
+            self.rlbench_actionmode = ActionMode(ArmActionMode.ABS_JOINT_POSITION)
+        elif mode == 'velocities':
+            self.rlbench_actionmode = ActionMode(ArmActionMode.ABS_JOINT_VELOCITY)
+        else:
+            raise ValueError(f'Mode must be one of "positions" or "velocities"')
 
     def get_new_network(self, training_info: TrainingInfo) -> Tuple[Model, NetworkInfo]:
         """ Uses NetworkBuilder to generate a desired new network.
