@@ -1,3 +1,6 @@
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+
 from rlbench.action_modes import ArmActionMode
 from rlbench.backend.observation import Observation
 

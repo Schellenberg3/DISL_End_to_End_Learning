@@ -1,3 +1,6 @@
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'
+
 from rlbench.observation_config import ObservationConfig
 
 from tensorflow.keras.backend import clear_session

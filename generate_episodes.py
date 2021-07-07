@@ -1,13 +1,5 @@
-from rlbench.action_modes import ArmActionMode
-from rlbench.action_modes import ActionMode
-
-from rlbench.environment import Environment
-
-from rlbench.observation_config import ObservationConfig
-
-from rlbench import DomainRandomizationEnvironment
-from rlbench import RandomizeEvery
-from rlbench import VisualRandomizationConfig
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'
 
 from utils.utils import save_episodes
 from utils.utils import check_yes
@@ -17,13 +9,9 @@ from multiprocessing import Process
 from os.path import join
 from os import cpu_count
 from os import listdir
-from os import getpid
-
-from typing import Union
 
 import numpy as np
 
-import pathlib
 import time
 
 
