@@ -153,7 +153,6 @@ def main():
                 target_label = episode[s].task_low_dim_state[0][:3]
                 gripper_label = episode[s].task_low_dim_state[1][:3]
             except IndexError:
-                print('missed label')
                 joint_label = np.zeros_like(joint_action)
                 action_label = np.zeros_like(gripper_action)
                 target_label = np.zeros_like(target_estimation)
@@ -168,10 +167,7 @@ def main():
 
         record.save_gif(f'{ep}')
 
-        del network
-        clear_session()
-        gc.collect()
-        network = load_model(join(network_dir, network_dir.split('/')[-1] + '.h5'))
+        network.reset_states()
 
     input('Press enter to exit...')
     env.shutdown()
