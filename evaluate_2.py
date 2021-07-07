@@ -1,12 +1,7 @@
-import gc
-
 from tensorflow.keras.models import load_model
 from tensorflow.keras.backend import clear_session
 
 from rlbench.action_modes import ArmActionMode
-from rlbench.action_modes import ActionMode
-from rlbench.environment import Environment
-from rlbench.observation_config import ObservationConfig
 from rlbench.backend.observation import Observation
 
 from utils.recorder import Recorder
@@ -17,12 +12,14 @@ from utils.utils import get_order
 from utils.utils import load_data
 from config import EndToEndConfig
 
+from typing import Union
+from typing import Tuple
+from typing import List
+
 from os.path import join
 from os import listdir
 import numpy as np
-import pickle
-
-import matplotlib.pyplot as plt
+import gc
 
 
 def get_image(obs: Observation, pov: str) -> np.ndarray:
@@ -43,40 +40,16 @@ def get_image(obs: Observation, pov: str) -> np.ndarray:
     return image
 
 
-def get_env(rand_env: bool, config: EndToEndConfig):
-    if rand_env:
-        return DomainRandomizationEnvironment(config.rlbench_actionmode,
-                                              obs_config=config.rlbench_obsconfig,
-                                              headless=False,
-                                              randomize_every=RandomizeEvery.EPISODE,
-                                              frequency=1,
-                                              visual_randomization_config=config.rlbench_random_config)
-    else:
-        return Environment(action_mode=config.rlbench_actionmode,
-                           obs_config=config.rlbench_obsconfig,
-                           headless=False,
-                           robot_configuration='panda')
+def get_episode_info(config: EndToEndConfig) -> Tuple[Union[List[int], List[str]], str, bool]:
+    """
+    Gets a list of episode numbers to recreate.
 
+    :param config: EndToEnd config object that holds the dataset information.
 
-def main():
-    print('[Info] Starting demonstrate.py')
-
-    config = EndToEndConfig()
-
-    network_dir = config.get_trained_network()
-    network = load_model(join(network_dir, network_dir.split('/')[-1] + '.h5'))
-
-    pickle_location = join(network_dir, 'network_info.pickle')
-    with open(pickle_location, 'rb') as handle:
-        network_info: NetworkInfo = pickle.load(handle)
-
-    print(f'\n[Info] Finished loading the network, {network_info.network_name}.')
-
-    parsed_network_name = network_info.network_name.split('_')
-    task_name, imitation_task = config.get_task_from_name(parsed_network_name)
-
+    :returns:  A tuple of: (1) A list of episode numbers as either integers or strings to be loaded,
+               (2) file path for the dataset directory, and (3) a bool that is true if the dataset is randomized.
+    """
     config.list_data_set_directories()
-
     dir_num = None
     try:
         dir_num = int(input('\nSelect a directory reproduce from: '))
@@ -89,22 +62,40 @@ def main():
                        config.possible_data_set[dir_num],
                        'variation0',
                        'episodes')
-    rand_env = True if 'randomized' in config.possible_data_set[dir_num].split('/')[0].split('_') else False
-    print(f'{rand_env}')
     dir_len = len(listdir(dataset_dir))
 
     print(f"\nThere are {dir_len} episodes available. Enter a list of episodes or a number followed by "
           f"'!' to get that number of random episodes...")
     eps = input("Enter which episode(s) to load (default is '5!'): ") or '5!'
 
+    randomized = True if 'randomized' in config.possible_data_set[dir_num].split('/')[0].split('_') else False
+
     if '!' in eps:
         eps = get_order(int(eps[:-1]), dir_len, 1)
     else:
         eps = eps.split()
 
-    demonstration_episode_length = 100  # max steps per episode
+    return eps, dataset_dir, randomized
 
-    env = get_env(rand_env, config)
+
+def main():
+    print('[Info] Starting demonstrate.py')
+
+    config = EndToEndConfig()
+
+    network_dir = config.get_trained_network_dir()
+    network, network_info = config.load_trained_network(network_dir)
+
+    print(f'\n[Info] Finished loading the network, {network_info.network_name}.')
+
+    _, imitation_task = config.get_task_from_name(network_info.network_name.split('_'))
+
+    eps, dataset_dir, randomized = get_episode_info(config)
+
+    mode = 'velocities'
+    config.set_action_mode(mode)
+
+    env = config.get_env(randomized=randomized)
     env.launch()
 
     record = Recorder(network_dir=network_dir)
@@ -157,11 +148,12 @@ def main():
             # Get actual values #
             #####################
             try:
-                joint_label = episode[s].joint_positions
+                joint_label = getattr(episode[s], f'joint_{mode}')
                 action_label = episode[s].gripper_open
                 target_label = episode[s].task_low_dim_state[0][:3]
                 gripper_label = episode[s].task_low_dim_state[1][:3]
             except IndexError:
+                print('missed label')
                 joint_label = np.zeros_like(joint_action)
                 action_label = np.zeros_like(gripper_action)
                 target_label = np.zeros_like(target_estimation)

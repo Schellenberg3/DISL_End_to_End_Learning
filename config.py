@@ -13,6 +13,7 @@ from utils.network_info import NetworkInfo
 from utils.networks import NetworkBuilder
 from utils.utils import alpha_numeric_sort
 
+from tensorflow.keras.models import load_model
 from tensorflow.keras import Model
 
 from os.path import dirname
@@ -21,8 +22,11 @@ from os.path import join
 from os import listdir
 
 from typing import Tuple
+from typing import Union
 from typing import List
 from typing import Any
+
+import pickle
 
 
 class EndToEndConfig:
@@ -282,7 +286,7 @@ class EndToEndConfig:
                 except NotADirectoryError:
                     pass
 
-    def get_trained_network(self) -> str:
+    def get_trained_network_dir(self) -> str:
         """ Prints a numbered list of all trained networks in the network
         directory with the number of episodes they contain. User selects what
         directory/network to use and a path to the selection is returned
@@ -302,6 +306,25 @@ class EndToEndConfig:
         except (ValueError, IndexError):
             print(self._possible_network)
             exit('\n[ERROR] Selections must be integers and valid list indices. Exiting program')
+
+    @staticmethod
+    def load_trained_network(network_dir) -> Tuple[Model, NetworkInfo]:
+        """
+        Loads a tensorflow model from a specified directory.
+
+        Assumes that the network file is .h5 format AND has the same name as the directory that
+        is is placed in.
+
+        :param network_dir: Path to the network directory
+
+        :returns: A tuple with the TensorFlow model and its NetworkInfo object
+        """
+        network = load_model(join(network_dir, network_dir.split('/')[-1] + '.h5'))
+
+        pickle_location = join(network_dir, 'network_info.pickle')
+        with open(pickle_location, 'rb') as handle:
+            network_info: NetworkInfo = pickle.load(handle)
+        return network, network_info
 
     def list_data_set_directories(self) -> None:
         """ Prints a numbered list of all data sets in the data

@@ -1,24 +1,12 @@
-from tensorflow.keras.models import load_model
-
 from rlbench.action_modes import ArmActionMode
-from rlbench.action_modes import ActionMode
-from rlbench.environment import Environment
-from rlbench.observation_config import ObservationConfig
 from rlbench.backend.observation import Observation
 
-from rlbench import DomainRandomizationEnvironment
-from rlbench import RandomizeEvery
-from rlbench import VisualRandomizationConfig
-
-from utils.network_info import NetworkInfo
 from utils.utils import scale_panda_pose
 from utils.utils import blank_image_list
 from utils.utils import step_images
 from config import EndToEndConfig
 
-from os.path import join
 import numpy as np
-import pickle
 
 import matplotlib.pyplot as plt
 
@@ -46,38 +34,19 @@ def main():
 
     config = EndToEndConfig()
 
-    network_dir = config.get_trained_network()
-    network = load_model(join(network_dir, network_dir.split('/')[-1] + '.h5'))
+    network_dir = config.get_trained_network_dir()
+    network, network_info = config.load_trained_network(network_dir)
 
-    pickle_location = join(network_dir, 'network_info.pickle')
-    with open(pickle_location, 'rb') as handle:
-        network_info: NetworkInfo = pickle.load(handle)
-
+    config.set_action_mode("velocities")
     print(f'\n[Info] Finished loading the network, {network_info.network_name}.')
 
     parsed_network_name = network_info.network_name.split('_')
     task_name, imitation_task = config.get_task_from_name(parsed_network_name)
 
     num_demonstrations = int(input('\nEnter how many demonstrations to perform (default 5): ') or 5)
-    demonstration_episode_length = 40  # max steps per episode
+    demonstration_episode_length = 100  # max steps per episode
 
-    action_mode = ActionMode(ArmActionMode.ABS_JOINT_POSITION)
-    obs_config = ObservationConfig()
-
-    env_type = 'regular'
-    if env_type == 'random':
-        rand_config = VisualRandomizationConfig(image_directory=config.domain_rand_textures)
-        env = DomainRandomizationEnvironment(action_mode,
-                                             obs_config=obs_config,
-                                             headless=False,
-                                             randomize_every=RandomizeEvery.EPISODE,
-                                             frequency=1,
-                                             visual_randomization_config=rand_config)
-    else:
-        env = Environment(action_mode=action_mode,
-                          obs_config=obs_config,
-                          headless=False,
-                          robot_configuration='panda')
+    env = config.get_env(randomized=True)
 
     env.launch()
     task = env.get_task(imitation_task)
