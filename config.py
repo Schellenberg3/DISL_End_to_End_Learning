@@ -208,13 +208,13 @@ class EndToEndConfig:
         else:
             raise ValueError(f'Mode must be one of "positions" or "velocities"')
 
-    def get_new_network(self, training_info: TrainingInfo) -> Tuple[Model, NetworkInfo]:
+    def get_new_network(self, training_info: TrainingInfo) -> Tuple[Model, Model, NetworkInfo]:
         """ Uses NetworkBuilder to generate a desired new network.
 
         :param training_info: String name of the training directory. This data is copied into the
                               returned NetworkInfo object so the input parameter may be deleted after.
 
-        :returns: compiled network and network's metainformation
+        :returns: compiled network, compiled stateful network, and network's metainformation
                   and training information as a NetworkInfo object
         """
 
@@ -255,6 +255,7 @@ class EndToEndConfig:
                                  rand=rand)
 
         network = builder.get_network()
+        stateful_network = builder.get_stateful_network()
 
         # Part of the network_info is generated here
         network_info = builder.get_metainfo()
@@ -264,7 +265,7 @@ class EndToEndConfig:
         # After this all data is filled in network_info.
         network_info.transfer_training_info(training_info)
 
-        return network, network_info
+        return network, stateful_network, network_info
 
     def list_trained_networks(self) -> None:
         """ Prints a numbered list of all trained networks in the network

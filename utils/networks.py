@@ -18,7 +18,11 @@ from tensorflow.keras.losses import CategoricalCrossentropy
 from tensorflow.keras.metrics import RootMeanSquaredError
 from tensorflow.keras.metrics import CategoricalAccuracy
 
-from tensorflow.keras.optimizers import  Adam
+from tensorflow.keras.optimizers import Adam
+
+from distutils.dir_util import copy_tree
+
+from os.path import join
 
 # Todo find a better way to handle these conditional imports
 try:
@@ -60,8 +64,9 @@ class NetworkBuilder(object):
         self._name = None
 
         self.network = self._build_and_compile_network()
+        self.stateful_network = self._build_and_compile_network(stateful=True)
 
-    def _joints(self) -> Model:
+    def _joints(self, stateful: bool = False) -> Model:
         """
         Creates a model for a robots joints. If a deep model is requested dense layer(s) are added.
         Otherwise, the model only flattens the input (e.g. does nothing) so a model may still be
@@ -70,14 +75,15 @@ class NetworkBuilder(object):
         Current intent is for joint angles but could be velocities or any other
         value. This is decided at the training stage.
         """
-        pos_input = Input(shape=self._num_joints)
+        batch_size = 1 if stateful else None
+        pos_input = Input(shape=self._num_joints, batch_size=batch_size)
         if self._deep:
             pos = Dense(16, activation="tanh")(pos_input)
         else:
             pos = Flatten()(pos_input)
         return Model(inputs=pos_input, outputs=pos)
 
-    def _gripper(self) -> Model:
+    def _gripper(self, stateful: bool = False) -> Model:
         """
         Creates a model for a robots gripper. If a deep model is requested dense layer(s) are added.
         Otherwise, the model only flattens the input (e.g. does nothing) so a model may still be
@@ -86,20 +92,22 @@ class NetworkBuilder(object):
         Current intent is for this to be categorical where 0 := close gripper and 1 := open gripper.
         However, this is decided at the compilation and training stage.
         """
-        gripper_input = Input(shape=1)
+        batch_size = 1 if stateful else None
+        gripper_input = Input(shape=1, batch_size=batch_size)
         if self._deep:
             grip = Dense(4, activation="tanh")(gripper_input)
         else:
             grip = Flatten()(gripper_input)
         return Model(inputs=gripper_input, outputs=grip)
 
-    def _cnn(self) -> Model:
+    def _cnn(self, stateful: bool = False) -> Model:
         """
         Creates a cnn to handle the depth camera input with the number of images requested.
 
         May be expanded with other CNN structures in the future.
         """
-        vis_input = Input(shape=(128, 128, 4*self._num_images))
+        batch_size = 1 if stateful else None
+        vis_input = Input(shape=(128, 128, 4*self._num_images), batch_size=batch_size)
 
         # Todo: consider using other values/structures here...
         #       Currently using network inspired by:
@@ -122,23 +130,23 @@ class NetworkBuilder(object):
 
         return Model(inputs=vis_input, outputs=vis)
 
-    def _build_and_compile_network(self) -> Model:
+    def _build_and_compile_network(self, stateful: bool = False) -> Model:
         """
         Builds the multi-input-multi-output (mimo) model and stores it in the
         self.network member variable.
 
         :return: a compile network
         """
-        joint_model = self._joints()
-        grip_model = self._gripper()
-        vis_model = self._cnn()
+        joint_model = self._joints(stateful=stateful)
+        grip_model = self._gripper(stateful=stateful)
+        vis_model = self._cnn(stateful=stateful)
 
         combined = Concatenate()([joint_model.output,
                                   grip_model.output,
                                   vis_model.output])
 
         z = Reshape((1, combined.shape[1]))(combined)
-        z = LSTM(128)(z)
+        z = LSTM(128, stateful=stateful)(z)
         z = Dense(128, activation="relu")(z)
 
         #########
@@ -218,6 +226,12 @@ class NetworkBuilder(object):
         """
         return self.network
 
+    def get_stateful_network(self) -> Model:
+        """
+        Getter function for the compiled  stateful network
+        """
+        return self.stateful_network
+
     def get_metainfo(self) -> NetworkInfo:
         """
         Returns dictionary with meta information about the network. Information is encoded in the
@@ -236,6 +250,32 @@ class NetworkBuilder(object):
         info.task_name = self._task
 
         return info
+
+
+class StatelessToStateful(object):
+    def __init__(self, stateless_model: Model, network_info: NetworkInfo, network_dir: str):
+        self._stateless_model = stateless_model
+        self._network_info = network_info
+
+        self._builder = NetworkBuilder(task=network_info.task_name,
+                                       deep=network_info.deep,
+                                       num_images=network_info.num_images,
+                                       num_joints=network_info.num_joints,
+                                       predict_mode=network_info.predict_mode,
+                                       pov=network_info.pov,
+                                       rand=network_info.randomized)
+
+        self._stateful_model = self._builder.get_stateful_network()
+        self._stateful_model.set_weights(self._stateless_model.get_weights())
+
+        self._network_dir = network_dir
+
+    def save(self):
+        new_network_dir = self._network_dir + '_stateful'
+        copy_tree(src=self._network_dir, dst=new_network_dir)
+
+        new_network_name = self._network_info.network_name + '_stateful.h5'
+        self._stateful_model.save(join(new_network_dir, new_network_name))
 
 
 def main():

@@ -106,9 +106,10 @@ def train_new(config: EndToEndConfig) -> None:
     train_dir, test_dir = config.get_train_test_directories()
     training_info = config.get_episode_amounts(train_dir, test_dir)
 
-    network, network_info = config.get_new_network(training_info=training_info)
+    network, stateful_network, network_info = config.get_new_network(training_info=training_info)
 
     train(network=network,
+          stateful_network=stateful_network,
           network_info=network_info,
           save_root=config.network_root,
           config=config)
@@ -154,6 +155,7 @@ def train_existing(config: EndToEndConfig) -> None:
 
 
 def train(network: Model,
+          stateful_network,
           network_info: NetworkInfo,
           save_root: str,
           config: EndToEndConfig,
@@ -300,6 +302,9 @@ def train(network: Model,
     # Save the network #
     ####################
     network.save(join(network_save_dir, save_network_as + '.h5'))
+
+    stateful_network.set_weights(network.get_weights())
+    stateful_network.save(join(network_save_dir + '_stateful', save_network_as + '_stateful.h5'))
 
     #####################################################################
     # Save network info, training performance, and a graph of the model #
