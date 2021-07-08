@@ -1,3 +1,4 @@
+from os.path import isfile
 from os.path import join
 from os.path import isdir
 from os import mkdir
@@ -43,6 +44,12 @@ class Recorder(object):
         :param clear_after: If true will call self.clear_images to reset the recording object
         """
         save_as = join(self._recording_dir, f'{fname}.gif')
+
+        i = 0
+        while isfile(save_as):
+            save_as = join(self._recording_dir, f'{fname}-{i}.gif')
+            i += 1
+
         self._images[0].save(save_as,
                              save_all=True,
                              append_images=self._images[1:],
