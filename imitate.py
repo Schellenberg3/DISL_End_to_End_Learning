@@ -121,16 +121,8 @@ def train_existing(config: EndToEndConfig) -> None:
     # Get users selection and load it and its network information #
     ###############################################################
 
-    network_dir = config.get_trained_network()
-
-    with open(join(network_dir, 'network_info.pickle'), 'rb') as f:
-        network_info = pickle.load(f)
-
-    try:
-        prev_train_performance = np.loadtxt(join(network_dir, 'train_performance.csv'),
-                                            delimiter=",")
-    except FileNotFoundError:
-        prev_train_performance = None
+    network_dir = config.get_trained_network_dir()
+    network, network_info, prev_train_performance = config.load_trained_network(network_dir)
 
     print('\n[Info] Retraining will not perform any evaluation. Use evaluate.py instead.')
     network_info.test_amount = 0  # Ensure that this is zero.

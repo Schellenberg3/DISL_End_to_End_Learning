@@ -26,6 +26,7 @@ from typing import Union
 from typing import List
 from typing import Any
 
+import numpy as np
 import pickle
 
 
@@ -307,7 +308,7 @@ class EndToEndConfig:
             print(self._possible_network)
             exit('\n[ERROR] Selections must be integers and valid list indices. Exiting program')
 
-    def load_trained_network(self, network_dir) -> Tuple[Model, NetworkInfo]:
+    def load_trained_network(self, network_dir) -> Tuple[Model, NetworkInfo, Union[np.ndarray, None]]:
         """
         Loads a tensorflow model from a specified directory AND sets the correct action
         mode for the config.
@@ -335,9 +336,15 @@ class EndToEndConfig:
             with open(pickle_location, 'wb') as handle:
                 pickle.dump(network_info, handle)
 
+        try:
+            prev_train_performance = np.loadtxt(join(network_dir, 'train_performance.csv'),
+                                                delimiter=",")
+        except FileNotFoundError:
+            prev_train_performance = None
+
         self.set_action_mode(mode=predict_mode)
 
-        return network, network_info
+        return network, network_info, prev_train_performance
 
     def list_data_set_directories(self) -> None:
         """ Prints a numbered list of all data sets in the data

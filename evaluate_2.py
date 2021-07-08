@@ -84,7 +84,7 @@ def main():
     config = EndToEndConfig()
 
     network_dir = config.get_trained_network_dir()
-    network, network_info = config.load_trained_network(network_dir)
+    network, network_info, _ = config.load_trained_network(network_dir)
 
     print(f'\n[Info] Finished loading the network, {network_info.network_name}.')
 
