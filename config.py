@@ -32,15 +32,24 @@ import pickle
 
 class EndToEndConfig:
     def __init__(self):
-        """ Container for common variables and getter/setters used
-        throughout the code.
+        """ Container for common variables and methods to manage RLBench, Tensorflow, and Datasets
+
+        This object is a group of common methods used in every other module in this project. Its
+        goal to ensure consistent access to data and environment settings. This is bone by abstracting
+        the functionality of RLBench and by storing information in the directory names (for both networks and data
+        sets.
+
+        Modules are organized into categories for those that...
+            - Configure RLBench
+            - Parse information from the directory names
+            - Manage the creation of new networks and loading of existing ones
+            - Manage the selection of datasets from the disk
         """
         # DO NOT MOVE THIS FILE FROM THE MAIN FOLDER. WILL BREAK DIRECTORY LOCATION ASSUMPTION
         self.data_root = join(dirname(realpath(__file__)), 'data')
         self.possible_data_set = []
 
         self.network_root = join(dirname(realpath(__file__)), 'networks')
-        self.network_sub_dir = ['imitation', 'reinforcement']
         self._possible_network = []
 
         self.domain_rand_textures = join(dirname(realpath(__file__)), 'utils', 'textures')
@@ -76,6 +85,10 @@ class EndToEndConfig:
                                                                           'Panda_gripper_visual',
                                                                           'Panda_leftfinger_visual',
                                                                           'Panda_rightfinger_visual'])
+
+    ############################################################################################
+    # Methods for getting information from the name of a network or directory OR from the user #
+    ############################################################################################
 
     def get_task_from_name(self, parsed_name: List[str]):
         """ Uses the network name or directory name to select the
@@ -164,7 +177,13 @@ class EndToEndConfig:
             return 'front'
 
     @staticmethod
-    def get_task_name(name: str):
+    def get_task_name(name: str) -> Tuple[str, bool]:
+        """ Returns the name of the task from a selected data set directory
+
+        :param name: full name of the task directory
+
+        :return: String of the task name and bool True if the task is randomized
+        """
         split = name.split('_')
         if len(split) == 1:
             return split[0], False
@@ -172,6 +191,10 @@ class EndToEndConfig:
             return split[0], True
         else:
             raise Exception(f'Could not parse training directory name: {name}')
+
+    ############################################
+    # Methods for managing RLBench environment #
+    ############################################
 
     def get_env(self, randomized: bool, headless: bool = False) -> Union[Environment, DomainRandomizationEnvironment]:
         """
@@ -207,6 +230,10 @@ class EndToEndConfig:
             self.rlbench_actionmode = ActionMode(ArmActionMode.ABS_JOINT_VELOCITY)
         else:
             raise ValueError(f'Mode must be one of "positions" or "velocities"')
+
+    ###########################################################
+    # Methods for managing TensorFlow environment and network #
+    ###########################################################
 
     def get_new_network(self, training_info: TrainingInfo) -> Tuple[Model, Model, NetworkInfo]:
         """ Uses NetworkBuilder to generate a desired new network.
@@ -277,7 +304,9 @@ class EndToEndConfig:
         """
         i = 0  # Only count if the item in network_root is a folder with children
         print(f'\nNetworks from the following directories may be used: ')
-        for sub_dir in self.network_sub_dir:
+        for sub_dir in listdir(self.network_root):
+            if sub_dir not in ['imitation', 'reinforcement']:
+                continue
             for net_dir in alpha_numeric_sort(listdir(join(self.network_root, sub_dir))):
                 try:
                     _ = listdir(join(self.network_root, sub_dir, net_dir))
@@ -346,6 +375,10 @@ class EndToEndConfig:
         self.set_action_mode(mode=predict_mode)
 
         return network, network_info, prev_train_performance
+
+    ##################################
+    # Methods for managing data sets #
+    ##################################
 
     def list_data_set_directories(self) -> None:
         """ Prints a numbered list of all data sets in the data
@@ -518,8 +551,6 @@ if __name__ == '__main__':
     print(f'\n[Info] The root for all networks is in: {e.network_root}\n'
           f'[Info] There the following sub directories are used: {e.network_sub_dir}')
 
-    print(f'\n[Info] The following custom network options are available: {e.custom_networks.keys()}')
-
     print('\n-------------------------------------------------------\n')
 
     print(f'[Info] Here is how testing and training datasets are selected: ')
@@ -539,19 +570,6 @@ if __name__ == '__main__':
 
     print(f'\n[Info] Evaluation selection: {ev}')
     print(f'[Info] Evaluation amount: {evn} of {eva}')
-
-    print('\n-------------------------------------------------------\n')
-
-    print(f'[Info] Here is how a new network is created')
-    nn, _, _ = e.get_new_network()
-    print(f'\n[Info] Network name: {nn}')
-
-    print('\n-------------------------------------------------------\n')
-
-    print(f'[Info] Here is how a network is created')
-    nd, nm = e.get_trained_network()
-    print(f'\n[Info] Network selection: {nd}')
-    print(f'[Info] Network name: {nm}')
 
     print('\n-------------------------------------------------------\n')
 
