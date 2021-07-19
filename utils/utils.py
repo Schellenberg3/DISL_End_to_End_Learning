@@ -15,7 +15,6 @@ from typing import Union
 
 from PIL import Image
 
-import tensorflow as tf
 import numpy as np
 
 import pickle
@@ -24,6 +23,18 @@ import random
 import os
 import re
 
+
+# This file contains many common functions used by code in the DISL End-to-End project
+# Broadly, these code modules can be separated into the following categories...
+#    - General functions that aren't specific to this project
+#    - Functions for saving RLBench episodes to disk and loading them to python objects
+#    - Functions for modifying the data in an RLBench episode object
+#
+# Code is grouped in these categories and the docstring describes how to used each function.
+
+#####################
+# General functions #
+#####################
 
 def alpha_numeric_sort(unsorted: List[str]) -> List[str]:
     """ Sorts a list by alphabetical order and accounts for numeric values
@@ -102,29 +113,33 @@ def get_order(amount: int, available: int, epochs=1) -> List[int]:
     return order
 
 
+#################################################
+# Functions for saving and loading RLBench data #
+#################################################
+
 def save_episodes(episodes: List[Demo], data_set_path: str, start_episode=0) -> None:
     """ Takes a list of demos/episodes and saves them to disk under the
     data folder.
 
-    :param episodes:      An array of type RLBench Demos
+    :param episodes:      An array of type RLBench Demo objects
     :param data_set_path: Path to the data set's root, usually the task's name
     :param start_episode: Offset to save at if there are existing demos
 
     :return: None
     """
-    for i, demo in enumerate(episodes):
+    for i, episode in enumerate(episodes):
         p = join(data_set_path,
                  'variation0',
                  'episodes',
                  f'episode{i + start_episode}')
-        _save_episode(demo, p)
+        _save_episode(episode, p)
 
 
 def _save_episode(episode: Demo, episode_path: str) -> None:
     """ Takes one full demo/episode and saves it in the provided
     directory.
 
-    :param episode:      A single RLBench episode, also a list of observations
+    :param episode:      A single RLBench episode (Demo object), also a list of observations
     :param episode_path: directory to save the example in
 
     :return: None
@@ -230,17 +245,17 @@ def _save_episode(episode: Demo, episode_path: str) -> None:
         pickle.dump(episode, file)
 
 
-def load_data(path: str, example_num: int, obs_config: ObservationConfig) -> Demo:
+def load_data(path: str, episode_num: int, obs_config: ObservationConfig) -> Demo:
     """ Loads a full demo/episode from disk based on the provided
     data path, episode number, and observation configuration
 
     :param path:        Data set directory
-    :param example_num: Requested episode number
+    :param episode_num: Requested episode number
     :param obs_config:  RLBench observation configuration
 
     :return: Demo object for the requested episode
     """
-    example_path = join(path, f'episode{example_num}')
+    example_path = join(path, f'episode{episode_num}')
 
     with open(join(example_path, LOW_DIM_PICKLE), 'rb') as f:
         obs = pickle.load(f)
@@ -384,6 +399,10 @@ def load_data(path: str, example_num: int, obs_config: ObservationConfig) -> Dem
 
     return obs
 
+
+################################################
+# Functions for modifying RLBench episode data #
+################################################
 
 def format_data(episode: Demo, pov: Union[List[str], str]) -> Demo:
     """ Takes a demo/episode loaded from disk and normalizes the images to
