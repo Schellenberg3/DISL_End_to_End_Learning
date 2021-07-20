@@ -22,6 +22,7 @@ from queue import Empty
 
 from psutil import virtual_memory
 from datetime import datetime
+from shutil import copyfile
 from typing import List
 from typing import Dict
 from typing import Union
@@ -313,9 +314,14 @@ def train(network: Model,
     with open(save_info_at, 'wb') as handle:
         pickle.dump(network_info, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
+    copyfile(save_info_at, join(network_save_dir + '_stateful', 'network_info.pickle'))
+
     save_train_performance(network_save_dir=network_save_dir,
                            train_performance=train_performance,
                            prev_train_performance=prev_train_performance)
+
+    copyfile(join(network_save_dir, 'train_performance.csv'),
+             join(network_save_dir + '_stateful', 'train_performance.csv'))
 
     try:
         plot_model(network, join(network_save_dir, "network.png"), show_shapes=True)
