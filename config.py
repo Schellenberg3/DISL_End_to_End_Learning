@@ -19,7 +19,9 @@ from tensorflow.keras import Model
 from os.path import dirname
 from os.path import realpath
 from os.path import join
+from os.path import isdir
 from os import listdir
+from os import mkdir
 
 from typing import Tuple
 from typing import Union
@@ -47,9 +49,14 @@ class EndToEndConfig:
         """
         # DO NOT MOVE THIS FILE FROM THE MAIN FOLDER. WILL BREAK DIRECTORY LOCATION ASSUMPTION
         self.data_root = join(dirname(realpath(__file__)), 'data')
+        if not isdir(self.data_root):
+            mkdir(self.data_root)
         self.possible_data_set = []
 
         self.network_root = join(dirname(realpath(__file__)), 'networks')
+        if not isdir(self.network_root):
+            mkdir(self.network_root)
+            mkdir(join(self.network_root, 'imitation'))
         self._possible_network = []
 
         self.domain_rand_textures = join(dirname(realpath(__file__)), 'utils', 'textures')
