@@ -10,6 +10,7 @@ from utils.utils import format_data
 from utils.utils import split_data
 from utils.utils import scale_pose_up
 from utils.utils import scale_pose_down
+from utils.utils import scale_panda_pose
 from utils.utils import blank_image_list
 from utils.utils import step_images
 
@@ -504,7 +505,7 @@ def test_format_data(data_input: Tuple[List[Demo], List[Demo], str], demo_num: i
             results_images.append(f)
 
         j = np.allclose(a=obs.joint_positions,
-                        b=scale_pose_down(live[demo_num][i].joint_positions))
+                        b=scale_panda_pose(live[demo_num][i].joint_positions, 'down'))
         results_joints.append(j)
 
     same_length = len(data) == len(live[demo_num])
@@ -613,7 +614,10 @@ def test_split_data(data_input: Tuple[List[Demo], List[Demo], str], demo_num: in
         input_action_results.append(train_action[step] == live[demo_num][step].gripper_open)
         input_images_results.append(np.allclose(a=train_images[step],
                                                 b=np.dstack(live_image_list)))
-        label_action_results.append(label_action[step] == live_label_action)
+        array_action = np.zeros(2)
+        array_action[int(live_label_action)] = 1
+        label_action_results.append(np.allclose(label_action[step],
+                                                array_action))
         label_target_results.append(np.allclose(a=label_target[step],
                                                 b=live_label_target))
         label_gripper_results.append(np.allclose(a=label_gripper[step],
@@ -622,9 +626,9 @@ def test_split_data(data_input: Tuple[List[Demo], List[Demo], str], demo_num: in
         # Note that we must used .copy() here since the joint positions would otherwise be changed
         # for later in the test when compared to the labels.
         input_angle_results.append(np.allclose(a=train_angles[step],
-                                               b=scale_pose_down(live[demo_num][step].joint_positions.copy())))
+                                               b=scale_panda_pose(live[demo_num][step].joint_positions.copy(), 'down')))
         label_angle_results.append(np.allclose(a=label_angles[step],
-                                               b=scale_pose_down(live_label_angles.copy())))
+                                               b=scale_panda_pose(live_label_angles.copy(), 'down')))
 
     #################################################
     # The assertions made in the loop are condensed #
