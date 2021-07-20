@@ -34,17 +34,14 @@ def main(arguments: Namespace):
     visual = arguments.vis
 
     config = EndToEndConfig()
-    network_dir = config.get_trained_network()
+    network_dir = config.get_trained_network_dir()
 
-    with open(join(network_dir, 'network_info.pickle'), 'rb') as f:
-        network_info: NetworkInfo = pickle.load(f)
+    network, network_info, prev_train_performance = config.load_trained_network(network_dir)
 
     test_dir, test_amount, test_available = config.get_evaluate_directory()
     network_info.test_dir = test_dir
     network_info.test_amount = test_amount
     network_info.test_available = test_available
-
-    network = load_model(join(network_dir, network_dir.split('/')[-1] + '.h5'))
 
     if visual:
         display_vis(network=network,
@@ -368,7 +365,8 @@ def evaluate_network(network: Model, network_info: NetworkInfo,
                                                           obs_config),
                                                 pov=network_info.pov),
                                     num_images=network_info.num_images,
-                                    pov=network_info.pov)
+                                    pov=network_info.pov,
+                                    predict_mode=network_info.predict_mode)
 
         train_angles = inputs[0]
         train_action = inputs[1]
