@@ -148,7 +148,17 @@ def train_existing(config: EndToEndConfig) -> None:
 
     network = load_model(join(network_dir, network_dir.split('/')[-1] + '.h5'))
 
+    if 'stateful' in network_dir:
+        raise Exception('Cannot continue training on a stateful model. Use the stateless version.')
+
+    try:
+        stateful_network = load_model(join(network_dir + '_stateful',
+                                           network_dir.split('/')[-1] + '_stateful.h5'))
+    except FileNotFoundError:
+        stateful_network = None
+
     train(network=network,
+          stateful_network=stateful_network,
           network_info=network_info,
           save_root=config.network_root,
           prev_train_performance=prev_train_performance,
@@ -156,7 +166,7 @@ def train_existing(config: EndToEndConfig) -> None:
 
 
 def train(network: Model,
-          stateful_network,
+          stateful_network: Model,
           network_info: NetworkInfo,
           save_root: str,
           config: EndToEndConfig,
@@ -304,8 +314,9 @@ def train(network: Model,
     ####################
     network.save(join(network_save_dir, save_network_as + '.h5'))
 
-    stateful_network.set_weights(network.get_weights())
-    stateful_network.save(join(network_save_dir + '_stateful', save_network_as + '_stateful.h5'))
+    if stateful_network is not None:
+        stateful_network.set_weights(network.get_weights())
+        stateful_network.save(join(network_save_dir + '_stateful', save_network_as + '_stateful.h5'))
 
     #####################################################################
     # Save network info, training performance, and a graph of the model #
@@ -314,14 +325,16 @@ def train(network: Model,
     with open(save_info_at, 'wb') as handle:
         pickle.dump(network_info, handle, protocol=pickle.HIGHEST_PROTOCOL)
 
-    copyfile(save_info_at, join(network_save_dir + '_stateful', 'network_info.pickle'))
+    if stateful_network is not None:
+        copyfile(save_info_at, join(network_save_dir + '_stateful', 'network_info.pickle'))
 
     save_train_performance(network_save_dir=network_save_dir,
                            train_performance=train_performance,
                            prev_train_performance=prev_train_performance)
 
-    copyfile(join(network_save_dir, 'train_performance.csv'),
-             join(network_save_dir + '_stateful', 'train_performance.csv'))
+    if stateful_network is not None:
+        copyfile(join(network_save_dir, 'train_performance.csv'),
+                 join(network_save_dir + '_stateful', 'train_performance.csv'))
 
     try:
         plot_model(network, join(network_save_dir, "network.png"), show_shapes=True)
