@@ -92,7 +92,7 @@ def check_and_make(directory: str) -> None:
         os.makedirs(directory)
 
 
-def get_order(amount: int, available: int, epochs=1) -> List[int]:
+def get_order(amount: int, available: int, epochs=1, ordered: bool=False) -> List[int]:
     """ Used for selecting episode numbers from the datasets for testing and
     training. First picks amount from available. Then for each epoch
     randomly shuffles the selection. Finally, the selection is returned
@@ -101,14 +101,20 @@ def get_order(amount: int, available: int, epochs=1) -> List[int]:
     :param amount:    Number of episodes to pick
     :param available: The total number of episodes to pick from
     :param epochs:    How many times the selected episodes should appear
+    :param ordered:   If true returns first N episodes where N is the amount specified
+                      This is most useful for evaluation of a trained network.
 
     :return: list of episode numbers
     """
     order = []
-    to_pick_from = random.sample(list(range(available)), amount)
+    if not ordered:
+        to_pick_from = random.sample(list(range(available)), amount)
 
-    for e in range(epochs):
-        order += random.sample(to_pick_from, amount)
+        for e in range(epochs):
+            order += random.sample(to_pick_from, amount)
+    else:
+        for e in range(epochs):
+            order += list(range(amount))
 
     return order
 

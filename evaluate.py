@@ -359,7 +359,7 @@ def evaluate_network(network: Model, network_info: NetworkInfo,
                      network_save_dir: str, obs_config: ObservationConfig) -> None:
     print(f'\n[info] Beginning to evaluate the model on {network_info.test_amount} test demonstration episodes')
 
-    test_order = get_order(network_info.test_amount, network_info.test_available)
+    test_order = get_order(network_info.test_amount, network_info.test_available, ordered=True)
     evaluation_performance = []
 
     for episode in test_order:
