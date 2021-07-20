@@ -38,9 +38,8 @@ def main():
     config = EndToEndConfig()
 
     network_dir = config.get_trained_network_dir()
-    network, network_info = config.load_trained_network(network_dir)
+    network, network_info, _ = config.load_trained_network(network_dir)
 
-    config.set_action_mode("velocities")
     print(f'\n[Info] Finished loading the network, {network_info.network_name}.')
 
     parsed_network_name = network_info.network_name.split('_')
