@@ -5,6 +5,7 @@ from rlbench.action_modes import ArmActionMode
 from rlbench.backend.observation import Observation
 
 from utils.recorder import Recorder
+from utils.evaluation_recorder import EvaluationRecorder
 from utils.utils import scale_panda_pose
 from utils.utils import blank_image_list
 from utils.utils import step_images
@@ -19,7 +20,6 @@ from typing import List
 from os.path import join
 from os import listdir
 import numpy as np
-import gc
 
 
 def get_image(obs: Observation, pov: str) -> np.ndarray:
@@ -91,6 +91,7 @@ def main():
     _, imitation_task = config.get_task_from_name(network_info.network_name.split('_'))
 
     eps, dataset_dir, randomized = get_episode_info(config)
+    dataset_name = '_'.join(dataset_dir.split('/')[-4:-2])
 
     env = config.get_env(randomized=randomized)
     env.launch()
@@ -106,6 +107,7 @@ def main():
 
         descriptions, obs = task.reset()
         image_list = blank_image_list(network_info.num_images)
+        eval_recorder = EvaluationRecorder(episode, obs, network_info.predict_mode)
 
         print(f'\n[Info] Reproducing episode {ep}. On demo {i+1} of {len(eps)}')
         input('Press enter to continue...')
@@ -134,27 +136,9 @@ def main():
             joint_action = prediction[0].flatten()
             if config.rlbench_actionmode.arm == ArmActionMode.ABS_JOINT_POSITION:
                 joint_action = scale_panda_pose(joint_action, 'up')   # from [0, 1] to joint's proper values
-
             gripper_action = np.argmax(prediction[1].flatten())
-
             target_estimation = prediction[2].flatten()
-
             gripper_estimation = prediction[3].flatten()
-
-            #####################
-            # Get actual values #
-            #####################
-            try:
-                joint_label = getattr(episode[s], f'joint_{network_info.predict_mode}')
-                action_label = episode[s].gripper_open
-                target_label = episode[s].task_low_dim_state[0][:3]
-                gripper_label = episode[s].task_low_dim_state[1][:3]
-            except IndexError:
-                joint_label = np.zeros_like(joint_action)
-                action_label = np.zeros_like(gripper_action)
-                target_label = np.zeros_like(target_estimation)
-                gripper_label = np.zeros_like(gripper_estimation)
-
 
             #######################################################
             # Create action input and step the simulation forward #
@@ -162,8 +146,10 @@ def main():
             action = np.append(joint_action, gripper_action)
             obs, reward, terminate = task.step(action)
 
+            eval_recorder.update([joint_action, gripper_action, target_estimation, gripper_estimation],
+                                 obs)
         record.save_gif(f'{ep}')
-
+        eval_recorder.save_eval(network_dir, dataset_name, ep)
         network.reset_states()
 
     input('Press enter to exit...')
