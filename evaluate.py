@@ -2,13 +2,10 @@ from rlbench.observation_config import ObservationConfig
 
 from tensorflow.keras.metrics import CategoricalAccuracy
 from tensorflow.keras.metrics import RootMeanSquaredError
-from tensorflow.keras.models import load_model
 from tensorflow.keras import Model
 
 from utils.network_info import NetworkInfo
-from utils.utils import format_data
-from utils.utils import split_data
-from utils.utils import load_data
+from utils.utils import get_data
 from utils.utils import get_order
 
 from config import EndToEndConfig
@@ -22,20 +19,15 @@ from os import listdir
 from argparse import Namespace
 import argparse
 
-import tensorflow as tf
 import numpy as np
-import pickle
 import cv2
 
 
 def main(arguments: Namespace):
     print('[Info] Starting evaluate.py')
 
-    visual = arguments.vis
-
     config = EndToEndConfig()
     network_dir = config.get_trained_network_dir()
-
     network, network_info, prev_train_performance = config.load_trained_network(network_dir)
 
     test_dir, test_amount, test_available = config.get_evaluate_directory()
@@ -43,7 +35,7 @@ def main(arguments: Namespace):
     network_info.test_amount = test_amount
     network_info.test_available = test_available
 
-    if visual:
+    if arguments.vis:
         display_vis(network=network,
                     network_info=network_info,
                     obs_config=config.rlbench_obsconfig)
@@ -63,13 +55,12 @@ def display_vis(network, network_info, obs_config):
 
     dir_name = '/'.join(network_info.test_dir.split('/')[-4:-2])
 
-    inputs, labels = split_data(format_data(load_data(network_info.test_dir,
-                                                      ep_num,
-                                                      obs_config),
-                                            pov=network_info.pov
-                                            ),
-                                num_images=network_info.num_images,
-                                pov=network_info.pov)
+    inputs, labels = get_data(episode_dir=network_info.test_dir,
+                              episode_num=ep_num,
+                              obs_config=obs_config,
+                              pov=network_info.pov,
+                              num_images=network_info.num_images,
+                              predict_mode=network_info.predict_mode)
 
     test_angles = inputs[0]
     test_action = inputs[1]
@@ -360,32 +351,17 @@ def evaluate_network(network: Model, network_info: NetworkInfo,
     evaluation_performance = []
 
     for episode in test_order:
-        inputs, labels = split_data(format_data(load_data(network_info.test_dir,
-                                                          episode,
-                                                          obs_config),
-                                                pov=network_info.pov),
-                                    num_images=network_info.num_images,
-                                    pov=network_info.pov,
-                                    predict_mode=network_info.predict_mode)
-
-        train_angles = inputs[0]
-        train_action = inputs[1]
-        train_images = inputs[2]
-
-        label_angles = labels[0]
-        label_action = labels[1]
-        label_target = labels[2]
-        label_gripper = labels[3]
-
-        loss = network.evaluate(x=[np.asarray(train_angles),
-                                   np.asarray(train_action),
-                                   np.asarray(train_images)],
-                                y=[np.asarray(label_angles),
-                                   np.asarray(label_action),
-                                   np.asarray(label_target),
-                                   np.asarray(label_gripper)],
+        inputs, labels = get_data(episode_dir=network_info.test_dir,
+                                  episode_num=episode,
+                                  obs_config=obs_config,
+                                  pov=network_info.pov,
+                                  num_images=network_info.num_images,
+                                  predict_mode=network_info.predict_mode)
+        batch_steps = len(inputs[0])
+        loss = network.evaluate(x=inputs,
+                                y=labels,
                                 verbose=1,
-                                batch_size=len(train_angles))
+                                batch_size=batch_steps)
 
         loss.append(episode)
         evaluation_performance.append(loss)
