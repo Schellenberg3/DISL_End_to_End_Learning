@@ -147,7 +147,7 @@ The actual data for an episode is saved at a location similar to the following: 
 
 In the file system the data structure is organized as:
 
-```shell
+```
 DISL_End_to_End_Learning/
   └ data
     ├ misc
@@ -210,25 +210,25 @@ saved. The networks are saved with the following structure:
 
 On disk, the directories look something like:
 
-```shell
-DISL_End_to_End_Learning/
+```
+DISL_End_to_End_Learning
   └ networks
     └  imitation
        ├ j7g_v4_front_DislPickUpBlueCup_12000_by2
-         ├ dataset_evaluations      # CSVs with details from evaluate_on_dataset.py
-         ├ recordings               # Gifs of performances from evaluate_on_dataset.py
-         ├ j7g_v4_front_DislPickUpBlueCup_12000_by2.h5   # the actual TensorFlow model
-         ├ network.png              # image of the network's structure
-         ├ network_info.pickle      # metainformation about the network
-         └ train_performance.csv    # snapshot of training losses at 1% increments of training progress
+       | ├ dataset_evaluations      # CSVs with details from evaluate_on_dataset.py
+       | ├ recordings               # Gifs of performances from evaluate_on_dataset.py
+       | ├ j7g_v4_front_DislPickUpBlueCup_12000_by2.h5   # the actual TensorFlow model
+       | ├ network.png              # image of the network's structure
+       | ├ network_info.pickle      # metainformation about the network
+       | └ train_performance.csv    # snapshot of training losses at 1% increments of training progress
        ├ j7g_v4_front_DislPickUpBlueCup_12000_by2_stateful    
-         ├ . . . .               
-         ├ j7g_v4_front_DislPickUpBlueCup_12000_by2_stateful.h5   # The stateless version of the network above
-         └ . . . .   
+       | ├ . . . .               
+       | ├ j7g_v4_front_DislPickUpBlueCup_12000_by2_stateful.h5   # The stateless version of the network above
+       | └ . . . .   
        └ j7g_v1_wrist_ReachTarget_3000_by4
-         ├ . . . .               
-         ├ j7g_v1_wrist_ReachTarget_3000_by4.h5
-         └ . . . .   
+       | ├ . . . .               
+       | ├ j7g_v1_wrist_ReachTarget_3000_by4.h5
+       | └ . . . .   
        └ j7g_v1_wrist_ReachTarget_3000_by4_stateful
          ├ . . . .               
          ├ j7g_v1_wrist_ReachTarget_3000_by4_stateful.h5
