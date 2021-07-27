@@ -1,5 +1,3 @@
-from rlbench.observation_config import ObservationConfig
-
 from config import EndToEndConfig
 
 from utils.utils import format_data
@@ -49,7 +47,7 @@ def main():
     #  - the data after its been split                             #
     ################################################################
     on_disk = load_data(path=dataset_dir,
-                        example_num=ep_num,
+                        episode_num=ep_num,
                         obs_config=config.rlbench_obsconfig)
 
     formatted = format_data(episode=deepcopy(on_disk),
