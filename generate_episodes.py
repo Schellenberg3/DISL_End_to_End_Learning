@@ -140,8 +140,14 @@ if __name__ == '__main__':
               f'\n[Info] Exiting program successfully.')
         exit()
 
-    demo_per_process = int(required_new_demos / cpu_count())
-    demo_per_process_remainder = required_new_demos % cpu_count()
+    if cpu_count() <= 8:
+        num_processes = cpu_count()
+    else:
+        num_processes = int(input(f'\nEnter how many processes to spawn for generating episodes '
+                                  f'({cpu_count()} cores available in CPU, default number is 8): ') or 8)
+
+    demo_per_process = int(required_new_demos / num_processes)
+    demo_per_process_remainder = required_new_demos % num_processes
 
     print(f'[Info] Requested a total of {num_total_demos} demonstration episodes and '
           f'found {num_existing_demos} at the desired location. '
@@ -152,9 +158,9 @@ if __name__ == '__main__':
         exit(f'[Warn] Answer: {ans} not recognized. Exiting program without generating demonstrations.')
 
     num_start_at = num_existing_demos
-    for i in range(cpu_count()):
+    for i in range(num_processes):
 
-        if i < (cpu_count() - 1) and demo_per_process_remainder > 0:
+        if i < (num_processes - 1) and demo_per_process_remainder > 0:
             num_request = demo_per_process + 1
             demo_per_process_remainder -= 1
         else:
