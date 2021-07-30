@@ -1,0 +1,10 @@
+
+
+Training took a total of   6h  1m 12s.
+
+Network created and evaluated at 2021-03-18 00:38:01.481001 
+Training directory was: /home/andrew/research/DISL/data/training/DislPickUpBlueCup/variation0/episodes
+Training took   6h  1m 12s 
+Testing directory was: /home/andrew/research/DISL/data/training/DislPickUpBlueCup/variation0/episodes 
+Number of testing episodes was 20 
+Found an average mse of 0.00910427477392659 with a max of 0.032385166734457016 at episode 3420 and a min of 0.00010486230166861787 at episode 182.

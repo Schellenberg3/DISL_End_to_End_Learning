@@ -1,0 +1,74 @@
+
+
+Training took a total of  19h 18m 25s.
+
+Network created and evaluated at 2021-03-21 06:55:15.774816 
+Training directory was: /home/andrew/research/DISL/data/training_randomized/ReachTarget/variation0/episodes
+Training took  19h 18m 25s 
+Testing directory was: /home/andrew/research/DISL/data/training_randomized/ReachTarget/variation0/episodes 
+Number of testing episodes was 0 
+Found an average mse of NO EVALUATION with a max of -1 at episode -1 and a min of inf at episode -1.
+
+-------------------------------------------------------
+
+Evaluated at 2021-03-21 10:09:48.341451 
+Tested on /home/andrew/research/DISL/data/training_randomized/ReachTarget/variation0/episodes 
+The 5 episodes were numbers [9379, 6602, 273, 4733, 2954] 
+Found an average mse of 2.5207536282323416e-06 with a max of 4.077254288858967e-06 at episode 2954 and a min of inf at episode -1.
+5 episodes were used for testing.
+
+-------------------------------------------------------
+
+Evaluated at 2021-03-21 10:10:24.356369 
+Tested on /home/andrew/research/DISL/data/training_randomized/ReachTarget/variation0/episodes 
+The 5 episodes were numbers [8874, 6704, 3200, 9456, 5121] 
+Found an average mse of 2.145975122402888e-06 with a max of 3.750285713977064e-06 at episode 6704 and a min of 1.3089700132695725e-06 at episode 9456.
+5 episodes were used for testing.
+
+-------------------------------------------------------
+
+Evaluated at 2021-03-21 10:10:48.211759 
+Tested on /home/andrew/research/DISL/data/training/ReachTarget/variation0/episodes 
+The 5 episodes were numbers [6987, 4221, 7707, 6362, 7231] 
+Found an average mse of 2.3437905156242776e-06 with a max of 3.2622517665004125e-06 at episode 7231 and a min of 1.1529665471243788e-06 at episode 6362.
+5 episodes were used for testing.
+
+-------------------------------------------------------
+
+Evaluated at 2021-03-22 13:38:41.202543 
+Tested on /home/andrew/research/DISL/data/testing_randomized/ReachTarget/variation0/episodes 
+The 5 episodes were numbers [3, 8, 4, 1, 6] 
+Found an average mse of 1.3988850014357012e-06 with a max of 2.075540123769315e-06 at episode 4 and a min of 9.477815865466255e-07 at episode 8.
+5 episodes were used for testing.
+
+-------------------------------------------------------
+
+Evaluated at 2021-04-15 14:19:48.452551 
+Tested on /home/andrew/Research/DISL_End_to_End_Learning/data/training_randomized/ReachTarget/variation0/episodes 
+The 5 episodes were numbers [3683, 9549, 4280, 4295, 7537] 
+Found an average mse of 2.649456655490212e-06 with a max of 6.237858997337753e-06 at episode 7537 and a min of inf at episode -1.
+5 episodes were used for testing.
+
+-------------------------------------------------------
+
+Evaluated at 2021-04-15 14:23:33.664237 
+Tested on /home/andrew/Research/DISL_End_to_End_Learning/data/training_randomized/ReachTarget/variation0/episodes 
+The 10 episodes were numbers [1912, 2328, 6127, 8455, 3599, 1135, 1842, 9484, 4094, 1545] 
+Found an average mse of 2.384117226483795e-06 with a max of 7.1157423917611595e-06 at episode 8455 and a min of 1.0045894214272266e-06 at episode 1545.
+10 episodes were used for testing.
+
+-------------------------------------------------------
+
+Evaluated at 2021-04-15 14:35:09.549974 
+Tested on /home/andrew/Research/DISL_End_to_End_Learning/data/training_randomized/ReachTarget/variation0/episodes 
+The 10 episodes were numbers [7618, 2957, 8807, 3909, 7128, 5428, 7944, 9961, 9886, 2233] 
+Found an average mse of 2.360785367727658e-06 with a max of 4.739702035294613e-06 at episode 9961 and a min of 1.1474020311652566e-06 at episode 8807.
+10 episodes were used for testing.
+
+-------------------------------------------------------
+
+Evaluated at 2021-05-14 15:29:29.854948 
+Tested on /home/andrew/Research/DISL_End_to_End_Learning/data/testing/ReachTarget/variation0/episodes 
+The 8 episodes were numbers [14, 5, 9, 0, 7, 13, 19, 6] 
+Found an average mse of 2.5901952227513902e-06 with a max of 5.295295977703063e-06 at episode 13 and a min of 1.145264377555577e-06 at episode 9.
+8 episodes were used for testing.

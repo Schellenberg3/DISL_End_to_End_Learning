@@ -1,28 +1,18 @@
 from config import EndToEndConfig
+
 from os.path import join
+from os.path import isdir
 from os import listdir
 from os import renames
+
 import numpy as np
 import time
+import glob
 
 if __name__ == '__main__':
 
     config = EndToEndConfig()
-
-    config.list_data_set_directories()
-
-    dir_num = None
-    try:
-        dir_num = int(input('\nSelect a directory # to check: '))
-        if dir_num < 0 or dir_num > len(config.possible_data_set):
-            exit('\n[Error] Please enter a valid index above zero.')
-    except (IndexError, ValueError) as e:
-        exit('\n[Error] Selection should be an integer. Exiting program.')
-
-    broken_dataset_dir = join(config.data_root,
-                              config.possible_data_set[dir_num],
-                              'variation0',
-                              'episodes')
+    broken_dataset_dir = config.get_data_set_directory('Select a directory # to check: ')
 
     try:
         dir_to_rename = listdir(broken_dataset_dir)
@@ -50,7 +40,7 @@ if __name__ == '__main__':
     for i, dir_name in enumerate(dir_to_rename):
         old_name = f'{broken_dataset_dir}/{dir_name}'
         count.append(len(listdir(f'{old_name}/front_rgb')))
-        temp_name = f'{broken_dataset_dir}/episode{i}__temp'
+        temp_name = f'{broken_dataset_dir}/{dir_name}_tmp'
         renames(old_name, temp_name)
 
     count = np.asarray(count)
@@ -63,12 +53,22 @@ if __name__ == '__main__':
     more_size = []
     min_size = [float('inf'), '']
     max_size = [-1, '']
+    broken_dataset = []
+
+    missing_pkl = []
+
+    total_size = 0
 
     for i, dir_name in enumerate(listdir(broken_dataset_dir)):
         old_name = f'{broken_dataset_dir}/{dir_name}'
         size = len(listdir(f'{old_name}/front_rgb'))
         new_name = f'{broken_dataset_dir}/episode{i}'
         renames(old_name, new_name)
+        total_size += size
+
+        pkl_count = len(glob.glob(join(new_name, 'low_dim_obs.pkl')))
+        if pkl_count != 1:
+            missing_pkl.append(new_name.split('/')[-1])
 
         if size < min_size[0]:
             min_size[0] = size
@@ -83,6 +83,15 @@ if __name__ == '__main__':
         elif size > (avg + factor*std):
             more_name.append(new_name)
             more_size.append(size)
+
+        sub_dirs = listdir(new_name)
+        if len(sub_dirs) < 13:
+            broken_dataset.append(new_name.split('/')[-1])
+        else:
+            for folder in sub_dirs:
+                test_dir = join(new_name, folder)
+                if isdir(test_dir) and len(listdir(test_dir)) != size:
+                    broken_dataset.append(new_name.split('/')[-1])
 
     end_rename = time.perf_counter()
 
@@ -105,6 +114,20 @@ if __name__ == '__main__':
     print(f'\n[Info] The average number of steps per episode was {avg:.3f} with standard deviation of {std:.3f}.')
     print(f'[Info] Max number of steps: {max_size[0]} at {max_size[1].split(s)[-1]}')
     print(f'[Info] Min number of steps: {min_size[0]} at {min_size[1].split(s)[-1]}')
+
+    if len(missing_pkl) > 0:
+        print(f'\n[WARN] Missing Pickle Files in {len(missing_pkl)} episode(s)! Check the following...')
+        [print(f'{ep}') for ep in missing_pkl]
+    else:
+        print(f"\n[Info] Checked all episodes for 'low_dim_obs.pkl' files and found no missing data.")
+
+    if len(broken_dataset) > 0:
+        print(f'\n[WARN] Broken datasets in {len(missing_pkl)} episode(s)! Check the following...')
+        [print(f'{ep}') for ep in broken_dataset]
+    else:
+        print(f"\n[Info] Checked all episodes for broken datasets and found no missing data.")   
+
+    print(f'\n[Info] The dataset contains {total_size} datapoints across all {num_to_rename} episodes.')
 
     print(f'\n[Info] Successfully renamed {num_to_rename} files at: {broken_dataset_dir}. '
           f'Process took {end_rename - start_rename:.3f} seconds. Exiting program.')

@@ -1,22 +1,21 @@
-from rlbench.environment import Environment
-from rlbench.action_modes import ArmActionMode, ActionMode
-from rlbench.observation_config import ObservationConfig
-from rlbench import DomainRandomizationEnvironment
-from rlbench import RandomizeEvery
-from rlbench import VisualRandomizationConfig
-from config import EndToEndConfig
+import os
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1'
+
 from utils.utils import save_episodes
 from utils.utils import check_yes
+from config import EndToEndConfig
+
 from multiprocessing import Process
 from os.path import join
+from os import cpu_count
 from os import listdir
-import os
+
+import numpy as np
+
 import time
-import pathlib
 
 
-def multiprocess_demos(mp_action_mode,
-                       mp_obs_config,
+def multiprocess_demos(mp_config,
                        mp_headless,
                        mp_request,
                        mp_start_at,
@@ -24,28 +23,8 @@ def multiprocess_demos(mp_action_mode,
                        mp_root_save_path,
                        mp_domain_rand,
                        mp_dr_images):
-
-    if not mp_domain_rand:
-        mp_env = Environment(action_mode=mp_action_mode,
-                             obs_config=mp_obs_config,
-                             headless=mp_headless)
-    else:
-        # Configuration textures borrowed from RLBench
-        # todo: generate our own textures - different levels of textures?
-        im_path = pathlib.Path().absolute() / mp_dr_images
-        mp_rand_config = VisualRandomizationConfig(image_directory=im_path)
-        # todo: does domain randomization environment ONLY work with panda?
-        # todo: what does frequency do?
-        mp_env = DomainRandomizationEnvironment(action_mode=mp_action_mode,
-                                                obs_config=mp_obs_config,
-                                                headless=mp_headless,
-                                                randomize_every=RandomizeEvery.EPISODE,
-                                                frequency=1,
-                                                visual_randomization_config=mp_rand_config)
-
+    mp_env = mp_config.get_env(randomized=mp_domain_rand, headless=mp_headless)
     mp_env.launch()
-
-    mp_task = mp_env.get_task(requested_task)
 
     mp_error_count = 0
     mp_max_consecutive_error = 30
@@ -55,6 +34,9 @@ def multiprocess_demos(mp_action_mode,
 
     mp_remaining = mp_request
 
+    # Reset the random seed for each process to ensure unique episodes...
+    np.random.set_state(np.random.RandomState().get_state())
+
     while mp_remaining > 0:
         mp_begin_save_at = mp_start_at + mp_generated
 
@@ -62,8 +44,10 @@ def multiprocess_demos(mp_action_mode,
             mp_demos_per_loop = mp_remaining
 
         try:
+            mp_task = mp_env.get_task(requested_task)
             mp_demos = mp_task.get_demos(mp_demos_per_loop, live_demos=True)
             save_episodes(mp_demos, mp_root_save_path, mp_begin_save_at)
+            del mp_task
 
             if mp_prior_error:
                 mp_prior_error = False
@@ -74,7 +58,7 @@ def multiprocess_demos(mp_action_mode,
             mp_prior_error = True
 
         if mp_error_count >= mp_max_consecutive_error:
-            print(f'[WARN] experienced {mp_error_count} consecutive RuntimeError with CopelliaSim.'
+            print(f'[WARN] experienced {mp_error_count} consecutive RuntimeError with CopelliaSim. '
                   f'Abandoning the process. Dataset is likely broken near demonstration episode {mp_begin_save_at}.')
             break
 
@@ -96,7 +80,7 @@ if __name__ == '__main__':
     num_total_demos = int(input('\nHow many episodes should be generated? '))
 
     tag = input('\nWhat tag should the directory have? Testing (default), training, misc:  ').lower()
-    if tag not in ['testing','training','misc']:
+    if tag not in ['testing', 'training', 'misc']:
         tag = 'testing'
 
     if check_yes('\nWill the scene be randomized? (y/n) '):
@@ -127,9 +111,6 @@ if __name__ == '__main__':
     headless = True  # To save resources by not displaying CoppeliaSim
     live_demos = True
 
-    obs_config = ObservationConfig()
-    action_mode = ActionMode(ArmActionMode.ABS_JOINT_POSITION)
-
     processes = []
     mp_start_time = time.perf_counter()
 
@@ -159,8 +140,14 @@ if __name__ == '__main__':
               f'\n[Info] Exiting program successfully.')
         exit()
 
-    demo_per_process = int(required_new_demos / os.cpu_count())
-    demo_per_process_remainder = required_new_demos % os.cpu_count()
+    if cpu_count() <= 8:
+        num_processes = cpu_count()
+    else:
+        num_processes = int(input(f'\nEnter how many processes to spawn for generating episodes '
+                                  f'({cpu_count()} cores available in CPU, default number is 8): ') or 8)
+
+    demo_per_process = int(required_new_demos / num_processes)
+    demo_per_process_remainder = required_new_demos % num_processes
 
     print(f'[Info] Requested a total of {num_total_demos} demonstration episodes and '
           f'found {num_existing_demos} at the desired location. '
@@ -171,9 +158,9 @@ if __name__ == '__main__':
         exit(f'[Warn] Answer: {ans} not recognized. Exiting program without generating demonstrations.')
 
     num_start_at = num_existing_demos
-    for i in range(os.cpu_count()):
+    for i in range(num_processes):
 
-        if i < (os.cpu_count() - 1) and demo_per_process_remainder > 0:
+        if i < (num_processes - 1) and demo_per_process_remainder > 0:
             num_request = demo_per_process + 1
             demo_per_process_remainder -= 1
         else:
@@ -181,8 +168,7 @@ if __name__ == '__main__':
             num_request = demo_per_process
 
         processes.append(Process(target=multiprocess_demos,
-                                 args=(action_mode,
-                                       obs_config,
+                                 args=(config,
                                        headless,
                                        num_request,
                                        num_start_at,

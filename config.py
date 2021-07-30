@@ -1,59 +1,101 @@
+from rlbench.sim2real.domain_randomization import VisualRandomizationConfig
+from rlbench.sim2real.domain_randomization_environment import DomainRandomizationEnvironment
+from rlbench.observation_config import ObservationConfig
+from rlbench.action_modes import ArmActionMode
+from rlbench.action_modes import ActionMode
+from rlbench.environment import Environment
 from rlbench.tasks import DislPickUpBlueCup
 from rlbench.tasks import ReachTarget
-from utils.networks import position_vision
-from utils.networks import position_vision_4
-from utils.networks import rnn_position_vision
-from utils.networks import rnn_position_vision_4
-from utils.utils import split_data
-from utils.utils import split_data_4
-from utils.utils import check_yes
+from rlbench import RandomizeEvery
+
+from utils.training_info import TrainingInfo
+from utils.network_info import NetworkInfo
+from utils.networks import NetworkBuilder
+from utils.utils import alpha_numeric_sort
+
+from tensorflow.keras.models import load_model
+from tensorflow.keras import Model
+
 from os.path import dirname
 from os.path import realpath
 from os.path import join
 from os.path import isdir
 from os import listdir
+from os import mkdir
+
 from typing import Tuple
+from typing import Union
 from typing import List
 from typing import Any
+
+import numpy as np
+import pickle
 
 
 class EndToEndConfig:
     def __init__(self):
-        """ Container for common variables and getter/setters used
-        throughout the code.
+        """ Container for common variables and methods to manage RLBench, Tensorflow, and Datasets
+
+        This object is a group of common methods used in every other module in this project. Its
+        goal to ensure consistent access to data and environment settings. This is bone by abstracting
+        the functionality of RLBench and by storing information in the directory names (for both networks and data
+        sets.
+
+        Modules are organized into categories for those that...
+            - Configure RLBench
+            - Parse information from the directory names
+            - Manage the creation of new networks and loading of existing ones
+            - Manage the selection of datasets from the disk
         """
         # DO NOT MOVE THIS FILE FROM THE MAIN FOLDER. WILL BREAK DIRECTORY LOCATION ASSUMPTION
         self.data_root = join(dirname(realpath(__file__)), 'data')
+        if not isdir(self.data_root):
+            mkdir(self.data_root)
         self.possible_data_set = []
 
         self.network_root = join(dirname(realpath(__file__)), 'networks')
-        self.network_sub_dir = ['imitation', 'reinforcement']
+        if not isdir(self.network_root):
+            mkdir(self.network_root)
+            mkdir(join(self.network_root, 'imitation'))
         self._possible_network = []
 
         self.domain_rand_textures = join(dirname(realpath(__file__)), 'utils', 'textures')
 
         self.pov = ['front', 'wrist']
 
-        # long name : short name, model function, related split function
-        self.custom_networks = {"position_vision": ("pv",
-                                                    position_vision,
-                                                    split_data),
-                                "position_vision_4": ("pv4",
-                                                      position_vision_4,
-                                                      split_data_4),
-                                "rnn_position_vision": ("rnn-pv",
-                                                        rnn_position_vision,
-                                                        split_data),
-                                "rnn_position_vision_4": ("rnn-pv4",
-                                                          rnn_position_vision_4,
-                                                          split_data_4),
-                                }
-
         # task name : RLBench object
         self.tasks = {"ReachTarget": ReachTarget,
                       "DislPickUpBlueCup": DislPickUpBlueCup,
                       }
         self.default_task = ["ReachTarget", ReachTarget]
+
+        ###########################################################################################
+        # We contain a few RLBench configurations within this configuration to ensure consistency #
+        ###########################################################################################
+        self.rlbench_obsconfig = ObservationConfig()
+        self.rlbench_obsconfig.task_low_dim_state = True
+
+        self.rlbench_actionmode = ActionMode(ArmActionMode.ABS_JOINT_POSITION)
+
+        # Important to keep the blacklist updated; no errors are thrown if the item does not exist in the scene
+        self.rlbench_random_config = VisualRandomizationConfig(image_directory=self.domain_rand_textures,
+                                                               blacklist=['cup_visual',
+                                                                          'nonexistant_test',
+                                                                          'Panda_link0_visual',
+                                                                          'Panda_link1_visual',
+                                                                          'Panda_link2_visual',
+                                                                          'Panda_link3_visual',
+                                                                          'Panda_link4_visual',
+                                                                          'Panda_link5_visual',
+                                                                          'Panda_link6_visual',
+                                                                          'Panda_link7_visual',
+                                                                          'Panda_gripper_visual',
+                                                                          'Panda_leftfinger_visual',
+                                                                          'Panda_rightfinger_visual'])
+
+    ############################################################################################
+    # Methods for getting information from the name of a network or directory OR from the user #
+    ############################################################################################
 
     def get_task_from_name(self, parsed_name: List[str]):
         """ Uses the network name or directory name to select the
@@ -106,6 +148,7 @@ class EndToEndConfig:
         except (ValueError, IndexError) as e:
             exit('\n[ERROR] Selections must be integers and valid list indices. Exiting program')
 
+    # todo: consider removing
     def get_pov_from_name(self, parsed_name: List[str]) -> str:
         """ Takes a parsed name (from a saved network) and looks for information
         on the networks trained point of view. Returns this or asks for user
@@ -124,68 +167,139 @@ class EndToEndConfig:
             print(f'[Warn] Unable to infer networks point of view.')
             return self.get_pov_from_user()
 
-    def get_pov_from_user(self) -> str:
+    @staticmethod
+    def get_pov_from_user() -> str:
         """ If point of view cannot be inferred from the network's name
         this prompts the user to select which camera view to use.
 
         :return: Either "wrist" or "front"
         """
-        pov = input('Please enter what camera point of view to use, front (default) or wrist: ')
+        pov = input('Please enter what camera point of view to use, front (default) or wrist: ') or 'front'
         if pov in ['front', 'Front', 'wrist', 'Wrist']:
-            return pov.lower()
+            pov = pov.lower()
+            print(f'[Info] Using {pov} point of view.')
+            return pov
         else:
-            print(f'[Warn] Input "{pov}" is not an option, will use default point of view: front')
+            print(f'[Warn] Input "{pov}" is not a supported option. Defaulting to front.')
             return 'front'
 
-    def get_new_network(self):
-        """ Lists network options from custom_networks and lets user choose pick a
-        configuration. Returns a string describing the network's structure,
-        the network function, and supporting data split function.
+    @staticmethod
+    def get_task_name(name: str) -> Tuple[str, bool]:
+        """ Returns the name of the task from a selected data set directory
 
-        :return: (description of network, tensorflow model, data split function)
+        :param name: full name of the task directory
+
+        :return: String of the task name and bool True if the task is randomized
+        """
+        split = name.split('_')
+        if len(split) == 1:
+            return split[0], False
+        elif 'randomized' in split:
+            return split[0], True
+        else:
+            raise Exception(f'Could not parse training directory name: {name}')
+
+    ############################################
+    # Methods for managing RLBench environment #
+    ############################################
+
+    def get_env(self, randomized: bool, headless: bool = False) -> Union[Environment, DomainRandomizationEnvironment]:
+        """
+        Returns an RLBench environment with consistent action mode, observation RLBench observation config,
+        and domain randomization config.
+
+        :param randomized: If true will return an environment with domain randomization
+        :param headless:   If true will run headless (i.e. no display)
+
+        :return: Either a normal or domain randomized RLBench environment
+        """
+        if not randomized:
+            return Environment(action_mode=self.rlbench_actionmode,
+                               obs_config=self.rlbench_obsconfig,
+                               headless=headless)
+        else:
+            return DomainRandomizationEnvironment(action_mode=self.rlbench_actionmode,
+                                                  obs_config=self.rlbench_obsconfig,
+                                                  headless=headless,
+                                                  visual_randomization_config=self.rlbench_random_config,
+                                                  randomize_every=RandomizeEvery.EPISODE)
+
+    def set_action_mode(self, mode: str):
+        """
+        Setter for the config's RLBench action mode. May be set to either absolute joint position
+        or absolute joint velocity.
+
+        :param mode: What mode to use. Should be either 'positions' or 'velocities'
+        """
+        if mode == 'positions':
+            self.rlbench_actionmode = ActionMode(ArmActionMode.ABS_JOINT_POSITION)
+        elif mode == 'velocities':
+            self.rlbench_actionmode = ActionMode(ArmActionMode.ABS_JOINT_VELOCITY)
+        else:
+            raise ValueError(f'Mode must be one of "positions" or "velocities"')
+
+    ###########################################################
+    # Methods for managing TensorFlow environment and network #
+    ###########################################################
+
+    def get_new_network(self, training_info: TrainingInfo) -> Tuple[Model, Model, NetworkInfo]:
+        """ Uses NetworkBuilder to generate a desired new network.
+
+        :param training_info: String name of the training directory. This data is copied into the
+                              returned NetworkInfo object so the input parameter may be deleted after.
+
+        :returns: compiled network, compiled stateful network, and network's metainformation
+                  and training information as a NetworkInfo object
         """
 
-        print('\nThe following networks are available:')
+        print('\nPlease enter the parameters for your network...')
+        deep = bool(input('Use deep networks for gripper and joint inputs (yes/no. Default no): ') or False)
+        deep = False if deep != 'yes' else True
+        deep_option = '' if deep else 'not '
+        print(f'[Info] Network will {deep_option}use deep networks for the gripper and joint inputs.')
 
-        model_selection = None
+        num_images = int(input('\nHow many image should the network use as an input (default 4): ') or 4)
+        print(f'[Info] Network will accept {num_images} images as an input.')
 
-        list_keys = []
-        for i, (k, v) in enumerate(self.custom_networks.items()):
-            print(f'Option {i}.....{k}')
-            list_keys.append(k)
+        num_joints = int(input('\nHow man joints does your robot have (default 7 for Panda): ') or 7)
+        print(f'[Info] Network will accept {num_joints} joint values as an input.')
 
-        try:
-            model_selection = int(input('\nPlease enter the option # for the network you would like to create: '))
-            if model_selection > len(list_keys):
-                exit('[ERROR] Selections must one of the listed options. Exiting program')
-        except ValueError:
-            exit('[ERROR] Selections must be integers. Exiting program')
+        predict_mode = int(input('\nEnter 0 for position control or 1 for velocity control (default 0): ') or 0)
+        predict_mode = 'velocities' if predict_mode == 1 else 'positions'
+        print(f'[Info] Network will predict {predict_mode} for the {num_joints} joints.')
+        self.set_action_mode(predict_mode)
 
-        if check_yes('\nWill a data set with domain randomization be used in training? (y/n): '):
-            domain = "rand"
-        else:
-            domain = "norm"
+        print('\nPlease enter some training parameters for the network...')
+        pov = self.get_pov_from_user()
 
-        # Hard coding CNN options for now.
-        cnn_setting = "0"
-        # cnn_setting = input('\nEnter 0 to use a James inspired CNN, 1 to use a Hermann inspired CNN, or '
-        #                    'anything else to use the custom one: ')
+        train_dir = training_info.train_dir.split('/')
+        task, rand = self.get_task_name(train_dir[-3])
 
-        if cnn_setting == '0':
-            cnn_setting = "James"
-        elif cnn_setting == '1':
-            cnn_setting = "Hermann"
-        else:
-            cnn_setting = "Custom"
+        print(f"\n[Info] Detected that the dataset's task is {task}.")
 
-        key = list_keys[model_selection]
-        name = f'{self.custom_networks[key][0]}_{domain}_{cnn_setting}'
-        model = self.custom_networks[key][1](cnn_setting)
-        split = self.custom_networks[key][2]
+        rand_option = '' if rand else 'not '
+        print(f"\n[Info] Detected that the dataset is {rand_option}randomized.")
 
-        print(f'\n[Info] Network will be {key} configured with {cnn_setting} CNN')
+        builder = NetworkBuilder(task=task,
+                                 deep=deep,
+                                 num_images=num_images,
+                                 num_joints=num_joints,
+                                 predict_mode=predict_mode,
+                                 pov=pov,
+                                 rand=rand)
 
-        return name, model, split
+        network = builder.get_network()
+        stateful_network = builder.get_stateful_network()
+
+        # Part of the network_info is generated here
+        network_info = builder.get_metainfo()
+        network_info.predict_mode = predict_mode
+
+        # For the rest of the info we pass the training_info data through to network_info.
+        # After this all data is filled in network_info.
+        network_info.transfer_training_info(training_info)
+
+        return network, stateful_network, network_info
 
     def list_trained_networks(self) -> None:
         """ Prints a numbered list of all trained networks in the network
@@ -197,8 +311,10 @@ class EndToEndConfig:
         """
         i = 0  # Only count if the item in network_root is a folder with children
         print(f'\nNetworks from the following directories may be used: ')
-        for sub_dir in self.network_sub_dir:
-            for net_dir in listdir(join(self.network_root, sub_dir)):
+        for sub_dir in listdir(self.network_root):
+            if sub_dir not in ['imitation', 'reinforcement']:
+                continue
+            for net_dir in alpha_numeric_sort(listdir(join(self.network_root, sub_dir))):
                 try:
                     _ = listdir(join(self.network_root, sub_dir, net_dir))
                     self._possible_network.append(join(sub_dir, net_dir))
@@ -208,12 +324,12 @@ class EndToEndConfig:
                 except NotADirectoryError:
                     pass
 
-    def get_trained_network(self) -> Tuple[str, str]:
+    def get_trained_network_dir(self) -> str:
         """ Prints a numbered list of all trained networks in the network
         directory with the number of episodes they contain. User selects what
         directory/network to use and a path to the selection is returned
 
-        :return: (network_dir, network_name)
+        :return: network_dir
         """
         self.list_trained_networks()
 
@@ -224,87 +340,52 @@ class EndToEndConfig:
                 exit('\n[ERROR] Selections must be greater than zero. Exiting program.')
 
             network_dir = join(self.network_root, self._possible_network[network_num])
-            _, network_name = self._possible_network[network_num].split('/')
-            return network_dir, network_name
-        except (ValueError, IndexError) as e:
+            return network_dir
+        except (ValueError, IndexError):
             print(self._possible_network)
             exit('\n[ERROR] Selections must be integers and valid list indices. Exiting program')
 
-    def get_info_from_network_name(self, parsed_name: List[str]):
-        """ For retraining a network, this takes the name of a trained network and
-        returns the point of view ('front' or 'wrist'), what function to use to split
-        data, the task's training directory (testing directory is returned for consistency
-        but this should not be used in retraining), the RLBench class for the task, the
-        the amount of training episodes to uses (which is equal to the number available in the
-        training directory), the amount of training episodes available, the amount of testing episodes
-        to use (included for consistency but set to 0), the amount of testing episodes available
-        (included for consistency but set to 0), and the number of epochs previously trained over.
-
-        :param parsed_name: Network name split
-        :return: (Point of View, split function, task's name, RLBench task class,
-        training directory, testing directory, train amount, train available,
-        test amount, test available, previous epochs)
+    def load_trained_network(self, network_dir) -> Tuple[Model, NetworkInfo, Union[np.ndarray, None]]:
         """
+        Loads a tensorflow model from a specified directory AND sets the correct action
+        mode for the config.
 
-        pov = self.get_pov_from_name(parsed_name)
+        Assumes that the network file is .h5 format AND has the same name as the directory that
+        is is placed in.
 
-        task_name, task = self.get_task_from_name(parsed_name)
+        :param network_dir: Path to the network directory
 
-        if 'rnn-pv4' in parsed_name or 'pv4' in parsed_name:
-            split = split_data_4
-            print(f'\n[Info] Detected that the network uses 4 images, will format images accordingly')
-        else:
-            split = split_data
+        :returns: A tuple with the TensorFlow model and its NetworkInfo object
+        """
+        network = load_model(join(network_dir, network_dir.split('/')[-1] + '.h5'))
 
-        epoch_info = [i for i in parsed_name if 'by' in i]
-        if len(epoch_info) != 1:
-            prev_epoch = int(input('\n[Warn] Could not infer the prior number of epochs.\n'
-                                   'Please enter the number of epochs previously trained over: '))
-        else:
-            prev_epoch = int(epoch_info[0][2:])
-            print(f'\n[Info] Detected that the network was trained over {prev_epoch} epochs')
+        pickle_location = join(network_dir, 'network_info.pickle')
+        with open(pickle_location, 'rb') as handle:
+            network_info: NetworkInfo = pickle.load(handle)
 
-        tag = 'training'
-        tag += '_randomized' if 'rand' in parsed_name else ''
+        try:
+            predict_mode = network_info.predict_mode
+        except AttributeError:  # To catch older networks that did not have the predict mode when they were trained
+            print("\n[WARN] Could not find the network's action mode. Please correct this!")
+            predict_mode = int(input('Enter 0 for position control or 1 for velocity control (default 0): ') or 0)
+            predict_mode = 'velocities' if predict_mode == 1 else 'positions'
+            network_info.predict_mode = predict_mode
+            with open(pickle_location, 'wb') as handle:
+                pickle.dump(network_info, handle)
 
-        train_dir = join(self.data_root,
-                         tag,
-                         task_name,
-                         'variation0',
-                         'episodes')
+        try:
+            prev_train_performance = np.loadtxt(join(network_dir, 'train_performance.csv'),
+                                                delimiter=",")
+        except FileNotFoundError:
+            prev_train_performance = None
 
-        if isdir(train_dir):
-            train_available = len(listdir(train_dir))
-            print(f'\n[Info] Automatically selected dataset: {join(tag, task_name)} \n'
-                  f'[Info] Retraining will use all {train_available} episodes.')
+        self.set_action_mode(mode=predict_mode)
 
-            train_amount = train_available
+        return network, network_info, prev_train_performance
 
-            print('\n[Info] No testing will be performed. Use evaluate.py instead.')
-
-            test_dir = train_dir
-            test_amount = 0
-            test_available = 0
-        else:
-            print(f'\n[Info] Failed to detect the correct training directory. Note that retraining '
-                  f'uses all available episodes and does not do a final evaluation.\n '
-                  f' Please select a directory: ')
-            train_dir, _ = self.get_train_test_directories()
-
-            train_available = len(listdir(train_dir))
-            print(f'\n[Info] Retraining will use all {train_available} episodes.')
-
-            train_amount = train_available
-
-            print('\n[Info] No testing will be performed. Use evaluate.py instead.')
-
-            test_dir = train_dir
-            test_amount = 0
-            test_available = 0
-
-        return pov, split, task_name, task, train_dir, test_dir,\
-            train_amount, train_available, \
-            test_amount, test_available, prev_epoch
+    ##################################
+    # Methods for managing data sets #
+    ##################################
 
     def list_data_set_directories(self) -> None:
         """ Prints a numbered list of all data sets in the data
@@ -316,7 +397,8 @@ class EndToEndConfig:
         """
         i = 0  # Only count if the item in dataset_root is a folder with children
         print(f'\nThe data from the following directories may be used: ')
-        for folder in listdir(join(self.data_root)):
+
+        for folder in alpha_numeric_sort(listdir(join(self.data_root))):
             try:
                 for data in listdir(join(self.data_root, folder)):
                     self.possible_data_set.append(join(folder, data))
@@ -330,6 +412,25 @@ class EndToEndConfig:
                     i += 1
             except NotADirectoryError:
                 pass
+
+    def get_data_set_directory(self, prompt: str = 'Select a directory # to use: ') -> str:
+        """
+        Lists available datasets and returns the directory for just one.
+
+        :param prompt: What to say in the user prompt for an input.
+
+        :return: Path to dataset as {root}/{selected dataset}/variation0/episodes
+        """
+        self.list_data_set_directories()
+        dir_num = int(input(f'\n{prompt}'))
+        if (type(dir_num) is not int) or (dir_num < 0) or (dir_num > len(self.possible_data_set)):
+            exit('\n[Error] Please enter a valid index above zero.')
+
+        dataset_dir = join(self.data_root,
+                           self.possible_data_set[dir_num],
+                           'variation0',
+                           'episodes')
+        return dataset_dir
 
     def get_train_test_directories(self) -> Tuple[str, str]:
         """ Prints a numbered list of all data sets in the data
@@ -347,7 +448,8 @@ class EndToEndConfig:
             test_num = int(input('Enter directory # for testing: '))
 
             if train_num == test_num:
-                print('\n[Warn] Testing and training on the same directory. This is not recommended.')
+                input('\n[Warn] Testing and training on the same directory. This is not recommended. '
+                      'Press enter to continue... ')
             elif train_num < 0 or test_num < 0:
                 exit('\n[ERROR] Selections must be greater than zero. Exiting program.')
 
@@ -355,7 +457,7 @@ class EndToEndConfig:
             test_dir = join(self.data_root, self.possible_data_set[test_num], 'variation0', 'episodes')
 
             return train_dir, test_dir
-        except (ValueError, IndexError) as e:
+        except (ValueError, IndexError):
             exit('\n[ERROR] Selections must be integers and valid list indices. Exiting program')
 
     def get_evaluate_directory(self) -> Tuple[str, int, int]:
@@ -386,39 +488,63 @@ class EndToEndConfig:
                 eval_amount = available
 
             return eval_dir, eval_amount, available
-        except (ValueError, IndexError) as error:
+        except (ValueError, IndexError):
             exit('\n[ERROR] Selections must be integers and valid list indices. Exiting program')
 
-    def get_episode_amounts(self, train_dir: str, test_dir: str) -> Tuple[int, int, int, int, int]:
+    @staticmethod
+    def get_episode_amounts(train_dir: str, test_dir: str) -> TrainingInfo:
         """ Assists in getting and checking the number of training and testing demos to use
         and gets the number of training epochs. Also returns how many episodes are available in
         each directory.
 
         :param train_dir: full directory to training episodes
-        :param test_dir: full directory to testing episodes
-        :return: (train amount, train available, test amount, test available, epochs)
+        :param test_dir:  full directory to testing episodes
+
+        :return: A TrainingInfo object with the number of epochs and the directories, amount, and avalable episodes
+                 for training and testing.
         """
+
+        info = TrainingInfo()
+
         text = ['training', 'testing']
         amounts = [0, 0]
+        default = [-1, 0]
         available = [0, 0]
         for i, d in enumerate([train_dir, test_dir]):
             available[i] = len(listdir(d))
             print(f'\nThere are {available[i]} episodes available for {text[i]} at {d}')
-            to_use = int(input('Enter how many to use (or -1 for all): '))
+            to_use = int(input(f'Enter how many to use (or -1 for all. Default is {default[i]}): ') or default[i])
             if to_use > available[i] or to_use <= -1:
-                print(f'[Info] Using all {available[i]} {text[i]} episodes.')
                 to_use = available[i]
             amounts[i] = to_use
+            print(f'[Info] Using {amounts[i]} {text[i]} episodes.')
 
-        epochs = int(input('\nEnter how many epochs use: '))
+        epochs = int(input('\nEnter how many epochs use (default is 1): ') or 1)
         if epochs < 1:
-            print(f'[Info] Setting epochs to 1')
             epochs = 1
+        print(f'[Info] Training for {epochs} epoch')
 
-        return amounts[0], available[0], amounts[1], available[1], epochs
+        info.train_dir = train_dir
+        info.train_amount = amounts[0]
+        info.train_available = available[0]
+
+        info.test_dir = test_dir
+        info.test_amount = amounts[1]
+        info.test_available = available[1]
+
+        info.epochs = epochs
+
+        # train_dir is 'data' / 'tag' + {'_randomized'} / 'task' / 'variation0' / episodes
+        #                                ^ iff randomized data
+        pared_name = train_dir.split('/')
+        info.task_name = pared_name[-3]
+        info.randomized = True if 'randomized' in pared_name[-4].split('_') else False
+
+        return info
 
 
 if __name__ == '__main__':
+    # Todo re-write this
     print('[Info] Starting config.py')
 
     e = EndToEndConfig()
@@ -431,8 +557,6 @@ if __name__ == '__main__':
 
     print(f'\n[Info] The root for all networks is in: {e.network_root}\n'
           f'[Info] There the following sub directories are used: {e.network_sub_dir}')
-
-    print(f'\n[Info] The following custom network options are available: {e.custom_networks.keys()}')
 
     print('\n-------------------------------------------------------\n')
 
@@ -453,19 +577,6 @@ if __name__ == '__main__':
 
     print(f'\n[Info] Evaluation selection: {ev}')
     print(f'[Info] Evaluation amount: {evn} of {eva}')
-
-    print('\n-------------------------------------------------------\n')
-
-    print(f'[Info] Here is how a new network is created')
-    nn, _, _ = e.get_new_network()
-    print(f'\n[Info] Network name: {nn}')
-
-    print('\n-------------------------------------------------------\n')
-
-    print(f'[Info] Here is how a network is created')
-    nd, nm = e.get_trained_network()
-    print(f'\n[Info] Network selection: {nd}')
-    print(f'[Info] Network name: {nm}')
 
     print('\n-------------------------------------------------------\n')
 
