@@ -100,10 +100,11 @@ pick up blue cup). The [main repo](https://github.com/stepjam/RLBench) may be wi
 pip3 install tensorflow
 ```
 
-We'll finish setting up the directories with:
+**DISL_End_to_End_Learning**: We'll finish setting up this directory with:
 
 ```shell
-cd ../DISL_End_to_End_Learning && mkdir data
+cd ../DISL_End_to_End_Learning
+pip install -r requirements.txt
 ```
 
 Finally, to generate textures for domain randomization we run:
